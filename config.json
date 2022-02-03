@@ -17,10 +17,34 @@
     }
   },
   "ethereum": {
-    "from": "",
-    "keystore": "",
-    "password": "",
-    "rpc": "http://127.0.0.1:9989"
+    "from": "0x416C5F62C671cAeBde8904DAF214c230a5A4E5e7",
+    "keystore": "/home/madumas/keys",
+    "password": "/home/madumas/keys/password.txt",
+    "rpc": "https://optimism-kovan.infura.io/v3/7f7c152ce22a402dabdbd47f9a397a4c"
+  },
+  "leeloo": {
+    "signers": {
+      "logSigner": {
+        "enable": true
+      }
+    },
+    "listeners": {
+      "wormhole": [
+        {
+          "rpc": "https://optimism-kovan.infura.io/v3/7f7c152ce22a402dabdbd47f9a397a4c",
+          "interval": 30,
+          "blocksBehind": [
+            10,
+            100,
+            1000
+          ],
+          "maxBlocks": 100,
+          "addresses": [
+            "0x5BB6699ef885ca997D1467380ff9E51c606A07e1"
+          ]
+        }
+      ]
+    }
   },
   "feeds": [
     "0xDA1d2961Da837891f43235FddF66BAD26f41368b",
