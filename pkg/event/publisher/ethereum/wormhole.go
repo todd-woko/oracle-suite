@@ -46,7 +46,7 @@ type WormholeListener struct {
 
 // WormholeListenerConfig contains a configuration options for NewWormholeListener.
 type WormholeListenerConfig struct {
-	// Ethereum client.
+	// Client is an instance of Ethereum RPC client.
 	Client EthClient
 	// Addresses is a list of contracts from which logs will be fetched.
 	Addresses []ethereum.Address
@@ -66,7 +66,7 @@ type WormholeListenerConfig struct {
 // NewWormholeListener returns a new instance of the WormholeListener struct.
 func NewWormholeListener(cfg WormholeListenerConfig) *WormholeListener {
 	return &WormholeListener{
-		msgCh: make(chan *messages.Event, 128),
+		msgCh: make(chan *messages.Event, 1),
 		listener: newEthClientLogListener(
 			cfg.Client,
 			cfg.Addresses,
@@ -129,11 +129,12 @@ func logToMessage(log types.Log) (*messages.Event, error) {
 		// ID is additionally hashed to ensure that it is not similar to
 		// any other field, so it will not be misused. This field is intended
 		// to be used only be the event store.
-		ID:         crypto.Keccak256Hash(append(log.TxHash.Bytes(), big.NewInt(int64(log.Index)).Bytes()...)).Bytes(),
-		Index:      log.TxHash.Bytes(),
-		Date:       time.Now(),
-		Data:       data,
-		Signatures: map[string][]byte{},
+		ID:          crypto.Keccak256Hash(append(log.TxHash.Bytes(), big.NewInt(int64(log.Index)).Bytes()...)).Bytes(),
+		Index:       log.TxHash.Bytes(),
+		EventDate:   time.Unix(guid.timestamp, 0),
+		MessageDate: time.Now(),
+		Data:        data,
+		Signatures:  map[string]messages.EventSignature{},
 	}, nil
 }
 

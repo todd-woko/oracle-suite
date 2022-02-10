@@ -24,10 +24,10 @@ import (
 )
 
 type Memory struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 
-	ttl    time.Duration // Message TTL.
-	events map[[sha256.Size]byte][]*messages.Event
+	ttl   time.Duration // Message TTL.
+	index map[[sha256.Size]byte]map[[sha256.Size]byte]*messages.Event
 
 	// Variables used for message garbage collector.
 	gccount int // Increases every time a message is added.
@@ -39,29 +39,41 @@ type Memory struct {
 func New(ttl time.Duration) *Memory {
 	return &Memory{
 		ttl:     ttl,
-		events:  map[[sha256.Size]byte][]*messages.Event{},
+		index:   map[[sha256.Size]byte]map[[sha256.Size]byte]*messages.Event{},
 		gcevery: 100,
 	}
 }
 
 // Add implements the store.Storage interface.
-func (m *Memory) Add(msg *messages.Event) error {
+func (m *Memory) Add(author []byte, msg *messages.Event) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	h := hash(msg.Type, msg.Index)
-	if _, ok := m.events[h]; !ok {
-		m.events[h] = nil
+	hi := hashIndex(msg.Type, msg.Index)
+	hu := hashUnique(author, msg.ID)
+	if _, ok := m.index[hi]; !ok {
+		m.index[hi] = map[[32]byte]*messages.Event{}
 	}
-	m.events[h] = append(m.events[h], msg)
-	m.gc()
+	evt, ok := m.index[hi][hu]
+	if !ok || (ok && evt.EventDate.Before(msg.EventDate)) {
+		m.index[hi][hu] = msg
+		m.gc()
+	}
 	return nil
 }
 
 // Get implements the store.Storage interface.
 func (m *Memory) Get(typ string, idx []byte) ([]*messages.Event, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.events[hash(typ, idx)], nil
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	hi := hashIndex(typ, idx)
+	if _, ok := m.index[hi]; ok {
+		var evts []*messages.Event
+		for _, evt := range m.index[hi] {
+			evts = append(evts, evt)
+		}
+		return evts, nil
+	}
+	return nil, nil
 }
 
 // Garbage Collector removes expired messages.
@@ -70,31 +82,33 @@ func (m *Memory) gc() {
 	if m.gccount%m.gcevery != 0 {
 		return
 	}
-	for h, events := range m.events {
+	for hi, evts := range m.index {
 		// Count number of expired messages:
 		expired := 0
-		for _, event := range events {
-			if time.Since(event.Date) > m.ttl {
+		for _, evt := range evts {
+			if time.Since(evt.EventDate) > m.ttl {
 				expired++
 			}
 		}
 		// Delete expired messages:
-		if expired == len(m.events[h]) {
+		if expired == len(m.index[hi]) {
 			// If all messages with the same hash are expired.
-			delete(m.events, h)
+			delete(m.index, hi)
 		} else if expired > 0 {
 			// If only some messages are expired.
-			var es []*messages.Event
-			for _, event := range events {
-				if time.Since(event.Date) <= m.ttl {
-					es = append(es, event)
+			for ha, evt := range evts {
+				if time.Since(evt.EventDate) >= m.ttl {
+					delete(m.index[hi], ha)
 				}
 			}
-			m.events[h] = es
 		}
 	}
 }
 
-func hash(typ string, index []byte) [sha256.Size]byte {
+func hashUnique(author []byte, id []byte) [sha256.Size]byte {
+	return sha256.Sum256(append(author, id...))
+}
+
+func hashIndex(typ string, index []byte) [sha256.Size]byte {
 	return sha256.Sum256(append([]byte(typ), index...))
 }
