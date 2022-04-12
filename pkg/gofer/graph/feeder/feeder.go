@@ -16,7 +16,6 @@
 package feeder
 
 import (
-	"context"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -67,17 +66,14 @@ type Feedable interface {
 
 // Feeder sets prices from origins to the Feedable nodes.
 type Feeder struct {
-	ctx    context.Context
 	waitCh chan error
-
-	set *origins.Set
-	log log.Logger
+	set    *origins.Set
+	log    log.Logger
 }
 
 // NewFeeder creates new Feeder instance.
-func NewFeeder(ctx context.Context, set *origins.Set, log log.Logger) *Feeder {
+func NewFeeder(set *origins.Set, log log.Logger) *Feeder {
 	return &Feeder{
-		ctx:    ctx,
 		set:    set,
 		log:    log.WithField("tag", LoggerTag),
 		waitCh: make(chan error),
@@ -85,52 +81,10 @@ func NewFeeder(ctx context.Context, set *origins.Set, log log.Logger) *Feeder {
 }
 
 // Feed sets Prices to Feedable nodes. This method takes list of root nodes
-// and sets Prices to all of their children that implement the Feedable interface.
-func (f *Feeder) Feed(ns ...nodes.Node) Warnings {
-	return f.fetchPricesAndFeedThemToFeedableNodes(f.findFeedableNodes(ns, time.Now()))
-}
-
-// Start starts a goroutine which updates prices as often as the lowest TTL is.
-func (f *Feeder) Start(ns ...nodes.Node) error {
-	f.log.Infof("Starting")
-
-	gcdTTL := getGCDTTL(ns)
-	if gcdTTL < time.Second {
-		gcdTTL = time.Second
-	}
-	f.log.WithField("interval", gcdTTL.String()).Infof("Update interval (GCD of all TTLs)")
-
-	feed := func() {
-		// We have to add gcdTTL to the current time because we want
-		// to find all nodes that will expire before the next tick.
-		t := time.Now().Add(gcdTTL)
-		warns := f.fetchPricesAndFeedThemToFeedableNodes(f.findFeedableNodes(ns, t))
-		if len(warns.List) > 0 {
-			f.log.WithError(warns.ToError()).Warn("Unable to feed some nodes")
-		}
-	}
-
-	ticker := time.NewTicker(gcdTTL)
-	go func() {
-		feed()
-		for {
-			select {
-			case <-f.ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				feed()
-			}
-		}
-	}()
-
-	go f.contextCancelHandler()
-	return nil
-}
-
-// Wait waits until feeder's context is cancelled.
-func (f *Feeder) Wait() chan error {
-	return f.waitCh
+// and sets prices to all of their children that implement the Feedable interface.
+// The t parameter represents the time against which the price expiration is compared.
+func (f *Feeder) Feed(ns []nodes.Node, t time.Time) Warnings {
+	return f.feedNodes(f.findFeedableNodes(ns, t))
 }
 
 // findFeedableNodes returns a list of children nodes from given root nodes
@@ -149,7 +103,7 @@ func (f *Feeder) findFeedableNodes(ns []nodes.Node, t time.Time) []Feedable {
 	return feedables
 }
 
-func (f *Feeder) fetchPricesAndFeedThemToFeedableNodes(ns []Feedable) Warnings {
+func (f *Feeder) feedNodes(ns []Feedable) Warnings {
 	var warns Warnings
 
 	// originPair is used as a key in a map to easily find
@@ -204,12 +158,6 @@ func (f *Feeder) fetchPricesAndFeedThemToFeedableNodes(ns []Feedable) Warnings {
 	}
 
 	return warns
-}
-
-func (f *Feeder) contextCancelHandler() {
-	defer func() { f.waitCh <- nil }()
-	defer f.log.Info("Stopped")
-	<-f.ctx.Done()
 }
 
 func appendPairIfUnique(pairs []origins.Pair, pair origins.Pair) []origins.Pair {

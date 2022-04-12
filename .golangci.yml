@@ -15,6 +15,7 @@ run:
     - bin
     - testdata
     - testutil
+    - e2e
 
   # which files to skip: they will be analyzed, but issues from them
   # won't be reported. Default value is empty list, but there is
@@ -140,7 +141,7 @@ linters:
     - deadcode
     - depguard
     - dogsled
-    - dupl
+    #- dupl
     - errcheck
     - funlen
     - goconst
@@ -224,4 +225,4 @@ issues:
   # Default is false.
   new: true
   # Show only new issues created after git revision `REV`
-  new-from-rev: 8575515511b98d47c5d7368c50a699c873216b42
+  new-from-rev: ""

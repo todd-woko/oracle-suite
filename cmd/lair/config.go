@@ -17,22 +17,18 @@ package main
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"github.com/chronicleprotocol/oracle-suite/internal/config"
 	eventAPIConfig "github.com/chronicleprotocol/oracle-suite/internal/config/eventapi"
 	feedsConfig "github.com/chronicleprotocol/oracle-suite/internal/config/feeds"
 	transportConfig "github.com/chronicleprotocol/oracle-suite/internal/config/transport"
+	"github.com/chronicleprotocol/oracle-suite/internal/supervisor"
 	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum/geth"
-	eventAPI "github.com/chronicleprotocol/oracle-suite/pkg/event/api"
 	"github.com/chronicleprotocol/oracle-suite/pkg/event/store"
-	"github.com/chronicleprotocol/oracle-suite/pkg/event/store/memory"
-	"github.com/chronicleprotocol/oracle-suite/pkg/log"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport/messages"
 )
-
-const week = time.Hour * 7 * 24
 
 type Config struct {
 	Lair      eventAPIConfig.EventAPI   `json:"lair"`
@@ -40,103 +36,47 @@ type Config struct {
 	Feeds     feedsConfig.Feeds         `json:"feeds"`
 }
 
-type Dependencies struct {
-	Context context.Context
-	Logger  log.Logger
-}
-
-func (c *Config) Configure(d Dependencies) (transport.Transport, *store.EventStore, *eventAPI.EventAPI, error) {
-	fed, err := c.Feeds.Addresses()
+func PrepareServices(ctx context.Context, opts *options) (*supervisor.Supervisor, error) {
+	err := config.ParseFile(&opts.Config, opts.ConfigFilePath)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, fmt.Errorf(`config error: %w`, err)
 	}
-	tra, err := c.Transport.Configure(transportConfig.Dependencies{
-		Context: d.Context,
-		Signer:  geth.NewSigner(nil),
-		Feeds:   fed,
-		Logger:  d.Logger,
+	log := opts.Logger()
+	fed, err := opts.Config.Feeds.Addresses()
+	if err != nil {
+		return nil, fmt.Errorf(`feeds config error: %w`, err)
+	}
+	tra, err := opts.Config.Transport.Configure(transportConfig.Dependencies{
+		Signer: geth.NewSigner(nil),
+		Feeds:  fed,
+		Logger: log,
 	},
 		map[string]transport.Message{messages.EventMessageName: (*messages.Event)(nil)},
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, fmt.Errorf(`transport config error: %w`, err)
 	}
-	mem := memory.New(week)
-	evs, err := store.New(d.Context, store.Config{
-		Storage:   mem,
+	sto, err := opts.Config.Lair.ConfigureStorage()
+	if err != nil {
+		return nil, fmt.Errorf(`lair config error: %w`, err)
+	}
+	evs, err := store.New(store.Config{
+		Storage:   sto,
 		Transport: tra,
-		Log:       d.Logger,
+		Log:       log,
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, fmt.Errorf(`lair config error: %w`, err)
 	}
-	api, err := c.Lair.Configure(eventAPIConfig.Dependencies{
-		Context:    d.Context,
+	api, err := opts.Config.Lair.Configure(eventAPIConfig.Dependencies{
 		EventStore: evs,
 		Transport:  tra,
-		Logger:     d.Logger,
+		Logger:     log,
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, fmt.Errorf(`lair config error: %w`, err)
 	}
-	return tra, evs, api, nil
-}
-
-type Service struct {
-	ctxCancel  context.CancelFunc
-	Transport  transport.Transport
-	EventStore *store.EventStore
-	Lair       *eventAPI.EventAPI
-}
-
-func PrepareService(ctx context.Context, opts *options) (*Service, error) {
-	var err error
-	ctx, ctxCancel := context.WithCancel(ctx)
-	defer func() {
-		if err != nil {
-			ctxCancel()
-		}
-	}()
-
-	// Load config file:
-	err = config.ParseFile(&opts.Config, opts.ConfigFilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Services:
-	tra, evs, lel, err := opts.Config.Configure(Dependencies{
-		Context: ctx,
-		Logger:  opts.Logger(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Service{
-		ctxCancel:  ctxCancel,
-		Transport:  tra,
-		EventStore: evs,
-		Lair:       lel,
-	}, nil
-}
-
-func (s *Service) Start() error {
-	var err error
-	if err = s.Transport.Start(); err != nil {
-		return err
-	}
-	if err = s.EventStore.Start(); err != nil {
-		return err
-	}
-	if err = s.Lair.Start(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *Service) CancelAndWait() {
-	s.ctxCancel()
-	<-s.Lair.Wait()
-	<-s.Transport.Wait()
+	sup := supervisor.New(ctx)
+	sup.Watch(tra, evs, api)
+	return sup, nil
 }

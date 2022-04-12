@@ -34,6 +34,14 @@ import (
 
 type Options func(n *Node) error
 
+// DialTimeout sets dial timeout for libp2p nodes.
+func DialTimeout(t time.Duration) Options {
+	return func(n *Node) error {
+		n.hostOpts = append(n.hostOpts, libp2p.WithDialTimeout(t))
+		return nil
+	}
+}
+
 // ListenAddrs configures node to listen on the given addresses.
 func ListenAddrs(addrs []multiaddr.Multiaddr) Options {
 	return func(n *Node) error {
@@ -91,8 +99,9 @@ func UserAgent(userAgent string) Options {
 // dropped until we reach a low number of connections.
 func ConnectionLimit(low, high int, grace time.Duration) Options {
 	return func(n *Node) error {
-		n.connmgr = connmgr.NewConnManager(low, high, grace)
-		return nil
+		var err error
+		n.connmgr, err = connmgr.NewConnManager(low, high, connmgr.WithGracePeriod(grace))
+		return err
 	}
 }
 

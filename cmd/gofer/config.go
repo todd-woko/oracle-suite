@@ -23,9 +23,8 @@ import (
 	ethereumConfig "github.com/chronicleprotocol/oracle-suite/internal/config/ethereum"
 	goferConfig "github.com/chronicleprotocol/oracle-suite/internal/config/gofer"
 	"github.com/chronicleprotocol/oracle-suite/internal/gofer/marshal"
-	pkgGofer "github.com/chronicleprotocol/oracle-suite/pkg/gofer"
-	"github.com/chronicleprotocol/oracle-suite/pkg/gofer/rpc"
-	"github.com/chronicleprotocol/oracle-suite/pkg/log"
+	"github.com/chronicleprotocol/oracle-suite/internal/supervisor"
+	"github.com/chronicleprotocol/oracle-suite/pkg/gofer"
 )
 
 type Config struct {
@@ -33,111 +32,54 @@ type Config struct {
 	Gofer    goferConfig.Gofer       `json:"gofer"`
 }
 
-func (c *Config) Configure(ctx context.Context, logger log.Logger, noRPC bool) (pkgGofer.Gofer, error) {
-	cli, err := c.Ethereum.ConfigureEthereumClient(nil)
+func PrepareClientServices(
+	ctx context.Context,
+	opts *options,
+) (*supervisor.Supervisor, gofer.Gofer, marshal.Marshaller, error) {
+
+	err := config.ParseFile(&opts.Config, opts.ConfigFilePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, fmt.Errorf(`config error: %w`, err)
 	}
-	return c.Gofer.ConfigureGofer(ctx, cli, logger, noRPC)
-}
-
-func (c *Config) ConfigureRPCAgent(ctx context.Context, logger log.Logger) (*rpc.Agent, error) {
-	cli, err := c.Ethereum.ConfigureEthereumClient(nil)
+	log := opts.Logger()
+	cli, err := opts.Config.Ethereum.ConfigureEthereumClient(nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, fmt.Errorf(`ethereum config error: %w`, err)
 	}
-	return c.Gofer.ConfigureRPCAgent(ctx, cli, logger)
-}
-
-type GoferClientServices struct {
-	ctxCancel  context.CancelFunc
-	Gofer      pkgGofer.Gofer
-	Marshaller marshal.Marshaller
-}
-
-func PrepareGoferClientServices(ctx context.Context, opts *options) (*GoferClientServices, error) {
-	var err error
-	ctx, ctxCancel := context.WithCancel(ctx)
-	defer func() {
-		if err != nil {
-			ctxCancel()
-		}
-	}()
-
-	// Load config file:
-	err = config.ParseFile(&opts.Config, opts.ConfigFilePath)
+	gof, err := opts.Config.Gofer.ConfigureGofer(cli, log, opts.NoRPC)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse configuration file: %w", err)
-	}
-
-	// Services:
-	gof, err := opts.Config.Configure(ctx, opts.Logger(), opts.NoRPC)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load Gofer configuration: %w", err)
+		return nil, nil, nil, fmt.Errorf(`gofer config error: %w`, err)
 	}
 	mar, err := marshal.NewMarshal(opts.Format.format)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, fmt.Errorf(`invalid format option: %w`, err)
 	}
-
-	return &GoferClientServices{
-		ctxCancel:  ctxCancel,
-		Gofer:      gof,
-		Marshaller: mar,
-	}, nil
-}
-
-func (s *GoferClientServices) Start() error {
-	if g, ok := s.Gofer.(pkgGofer.StartableGofer); ok {
-		return g.Start()
+	sup := supervisor.New(ctx)
+	if g, ok := gof.(gofer.StartableGofer); ok {
+		sup.Watch(g)
 	}
-	return nil
+	return sup, gof, mar, nil
 }
 
-func (s *GoferClientServices) CancelAndWait() {
-	s.ctxCancel()
-	if g, ok := s.Gofer.(pkgGofer.StartableGofer); ok {
-		<-g.Wait()
-	}
-}
-
-type GoferAgentService struct {
-	ctxCancel context.CancelFunc
-	Agent     *rpc.Agent
-}
-
-func PrepareGoferAgentService(ctx context.Context, opts *options) (*GoferAgentService, error) {
-	var err error
-	ctx, ctxCancel := context.WithCancel(ctx)
-	defer func() {
-		if err != nil {
-			ctxCancel()
-		}
-	}()
-
-	// Load config file:
-	err = config.ParseFile(&opts.Config, opts.ConfigFilePath)
+func PrepareAgentServices(ctx context.Context, opts *options) (*supervisor.Supervisor, error) {
+	err := config.ParseFile(&opts.Config, opts.ConfigFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse configuration file: %w", err)
+		return nil, fmt.Errorf(`config error: %w`, err)
 	}
-
-	// Services:
-	age, err := opts.Config.ConfigureRPCAgent(ctx, opts.Logger())
+	log := opts.Logger()
+	cli, err := opts.Config.Ethereum.ConfigureEthereumClient(nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load Gofer configuration: %w", err)
+		return nil, fmt.Errorf(`ethereum config error: %w`, err)
 	}
-
-	return &GoferAgentService{
-		ctxCancel: ctxCancel,
-		Agent:     age,
-	}, nil
-}
-
-func (s *GoferAgentService) Start() error {
-	return s.Agent.Start()
-}
-
-func (s *GoferAgentService) CancelAndWait() {
-	s.ctxCancel()
-	<-s.Agent.Wait()
+	gof, err := opts.Config.Gofer.ConfigureAsyncGofer(cli, log)
+	if err != nil {
+		return nil, fmt.Errorf(`gofer config error: %w`, err)
+	}
+	age, err := opts.Config.Gofer.ConfigureRPCAgent(cli, gof, log)
+	if err != nil {
+		return nil, fmt.Errorf(`gofer config error: %w`, err)
+	}
+	sup := supervisor.New(ctx)
+	sup.Watch(gof, age)
+	return sup, nil
 }

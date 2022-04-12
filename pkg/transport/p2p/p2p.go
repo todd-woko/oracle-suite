@@ -61,6 +61,10 @@ const minEventsPerSecond = 0.1           // below that, score becomes negative
 const maxEventsPerSecond = 1             // it limits the maximum possible score only, not the number of events
 const maxInvalidMsgsPerHour float64 = 60 // per topic
 
+// Timeout has to be a little longer because signing messages using
+// the Ethereum wallet requires more time.
+const connectionTimeout = 120 * time.Second
+
 // defaultListenAddrs is the list of default multiaddresses on which node will
 // be listening on.
 var defaultListenAddrs = []string{"/ip4/0.0.0.0/tcp/0"}
@@ -123,15 +127,13 @@ type Config struct {
 // New returns a new instance of a transport, implemented with
 // the libp2p library.
 // nolint: gocyclo
-func New(ctx context.Context, cfg Config) (*P2P, error) {
+func New(cfg Config) (*P2P, error) {
 	var err error
 
 	if len(cfg.ListenAddrs) == 0 {
 		cfg.ListenAddrs = defaultListenAddrs
 	}
-	if ctx == nil {
-		return nil, errors.New("context must not be nil")
-	}
+
 	listenAddrs, err := strsToMaddrs(cfg.ListenAddrs)
 	if err != nil {
 		return nil, fmt.Errorf("P2P transport error, unable to parse listenAddrs: %w", err)
@@ -151,6 +153,7 @@ func New(ctx context.Context, cfg Config) (*P2P, error) {
 
 	logger := cfg.Logger.WithField("tag", LoggerTag)
 	opts := []p2p.Options{
+		p2p.DialTimeout(connectionTimeout),
 		p2p.Logger(logger),
 		p2p.ConnectionLogger(),
 		p2p.PeerLogger(),
@@ -209,7 +212,7 @@ func New(ctx context.Context, cfg Config) (*P2P, error) {
 		)
 	}
 
-	n, err := p2p.NewNode(ctx, opts...)
+	n, err := p2p.NewNode(opts...)
 	if err != nil {
 		return nil, fmt.Errorf("P2P transport error, unable to initialize node: %w", err)
 	}
@@ -218,8 +221,11 @@ func New(ctx context.Context, cfg Config) (*P2P, error) {
 }
 
 // Start implements the transport.Transport interface.
-func (p *P2P) Start() error {
-	err := p.node.Start()
+func (p *P2P) Start(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("context must not be nil")
+	}
+	err := p.node.Start(ctx)
 	if err != nil {
 		return fmt.Errorf("P2P transport error, unable to start node: %w", err)
 	}

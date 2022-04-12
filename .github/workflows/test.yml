@@ -9,6 +9,7 @@ on:
 
 jobs:
   test:
+    name: Code linting & Unit tests
     strategy:
       matrix:
         go-version: [1.16.x]
@@ -22,27 +23,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Linting code
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3
         with:
           # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
-          version: v1.43
-
-          # Optional: working directory, useful for monorepos
-          # working-directory: somedir
-
-          # Optional: golangci-lint command line arguments.
-          # args: --issues-exit-code=0
-
-          # Optional: show only new issues if it's a pull request. The default value is `false`.
-          # only-new-issues: true
-
-          # Optional: if set to true then the action will use pre-installed Go.
-          # skip-go-installation: true
-
-          # Optional: if set to true then the action don't cache or restore ~/go/pkg.
-          # skip-pkg-cache: true
-
-          # Optional: if set to true then the action don't cache or restore ~/.cache/go-build.
-          # skip-build-cache: true
+          version: v1.45
       - name: Test
         run: make test
+  test-e2e:
+    name: E2E Tests
+    strategy:
+      matrix:
+        go-version: [ 1.16.x ]
+        os: [ ubuntu-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Start Smocker instance for testing
+        run: docker run -d -p 8080:8080 -p 8081:8081 --name smocker thiht/smocker
+      - name: Build E2E Tests in Docker
+        run: docker build -t gofer_e2e -f e2e/gofer/Dockerfile .
+      - name: Run E2E Test
+        run: docker run -i --rm --link smocker gofer_e2e

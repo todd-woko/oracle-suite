@@ -49,26 +49,20 @@ type Agent struct {
 	api      *API
 	rpc      *rpc.Server
 	listener net.Listener
-	gofer    gofer.Gofer
 	network  string
 	address  string
 	log      log.Logger
 }
 
 // NewAgent returns a new Agent instance.
-func NewAgent(ctx context.Context, cfg AgentConfig) (*Agent, error) {
-	if ctx == nil {
-		return nil, errors.New("context must not be nil")
-	}
+func NewAgent(cfg AgentConfig) (*Agent, error) {
 	server := &Agent{
-		ctx:    ctx,
 		waitCh: make(chan error),
 		api: &API{
 			gofer: cfg.Gofer,
 			log:   cfg.Logger.WithField("tag", AgentLoggerTag),
 		},
 		rpc:     rpc.NewServer(),
-		gofer:   cfg.Gofer,
 		network: cfg.Network,
 		address: cfg.Address,
 		log:     cfg.Logger.WithField("tag", AgentLoggerTag),
@@ -84,17 +78,14 @@ func NewAgent(ctx context.Context, cfg AgentConfig) (*Agent, error) {
 }
 
 // Start starts the RPC server.
-func (s *Agent) Start() error {
+func (s *Agent) Start(ctx context.Context) error {
 	s.log.Infof("Starting")
 	var err error
 
-	// Start Gofer if necessary:
-	if sg, ok := s.gofer.(gofer.StartableGofer); ok {
-		err = sg.Start()
-		if err != nil {
-			return err
-		}
+	if ctx == nil {
+		return errors.New("context must not be nil")
 	}
+	s.ctx = ctx
 
 	// Start RPC server:
 	s.listener, err = net.Listen(s.network, s.address)

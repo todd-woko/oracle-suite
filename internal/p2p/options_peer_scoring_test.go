@@ -89,7 +89,6 @@ func TestNode_PeerScoring(t *testing.T) {
 
 	et := &scoringEventTracer{}
 	n0, err := NewNode(
-		ctx,
 		PeerPrivKey(peers[0].PrivKey),
 		ListenAddrs(peers[0].ListenAddrs),
 		PubsubEventTracer(et),
@@ -98,15 +97,16 @@ func TestNode_PeerScoring(t *testing.T) {
 		}),
 	)
 	require.NoError(t, err)
-	require.NoError(t, n0.Start())
+	require.NoError(t, n0.Start(ctx))
+	time.Sleep(time.Second)
 
 	n1, err := NewNode(
-		ctx,
 		PeerPrivKey(peers[1].PrivKey),
 		ListenAddrs(peers[1].ListenAddrs),
 	)
 	require.NoError(t, err)
-	require.NoError(t, n1.Start())
+	require.NoError(t, n1.Start(ctx))
+	time.Sleep(time.Second)
 
 	// Add validator to the n0 node which will reject all received messages
 	// from the second node:

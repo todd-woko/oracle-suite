@@ -16,7 +16,8 @@
 package eventapi
 
 import (
-	"context"
+	"os"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,6 +25,8 @@ import (
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/event/api"
 	"github.com/chronicleprotocol/oracle-suite/pkg/event/store"
+	"github.com/chronicleprotocol/oracle-suite/pkg/event/store/memory"
+	"github.com/chronicleprotocol/oracle-suite/pkg/event/store/redis"
 	"github.com/chronicleprotocol/oracle-suite/pkg/log/null"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport/local"
 )
@@ -32,30 +35,78 @@ func TestEventAPI_Configure(t *testing.T) {
 	prevEventAPIFactory := eventAPIFactory
 	defer func() { eventAPIFactory = prevEventAPIFactory }()
 
-	ctx := context.Background()
-	tra := local.New(ctx, []byte("test"), 0, nil)
+	tra := local.New([]byte("test"), 0, nil)
 	log := null.New()
 	evs := &store.EventStore{}
 
 	config := EventAPI{
-		Address: "127.0.0.1:0",
+		ListenAddr: "127.0.0.1:0",
 	}
 
-	eventAPIFactory = func(ctx context.Context, cfg api.Config) (*api.EventAPI, error) {
-		assert.NotNil(t, ctx)
+	eventAPIFactory = func(cfg api.Config) (*api.EventAPI, error) {
 		assert.Equal(t, evs, cfg.EventStore)
-		assert.Equal(t, config.Address, cfg.Address)
+		assert.Equal(t, config.ListenAddr, cfg.Address)
 		assert.Equal(t, log, cfg.Logger)
-
 		return &api.EventAPI{}, nil
 	}
 
 	a, err := config.Configure(Dependencies{
-		Context:    ctx,
 		EventStore: evs,
 		Transport:  tra,
 		Logger:     log,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, a)
+}
+
+func TestEventAPI_ConfigureStorage_memory(t *testing.T) {
+	config := EventAPI{
+		Storage: storage{
+			Type: "memory",
+		},
+	}
+	sto, err := config.ConfigureStorage()
+	require.NoError(t, err)
+	require.IsType(t, &memory.Memory{}, sto)
+}
+
+func TestEventAPI_ConfigureStorage_redis(t *testing.T) {
+	addr := os.Getenv("TEST_REDIS_ADDR")
+	pass := os.Getenv("TEST_REDIS_PASS")
+	db, _ := strconv.Atoi(os.Getenv("TEST_REDIS_DB"))
+	if len(addr) == 0 {
+		t.Skip()
+		return
+	}
+	config := EventAPI{
+		Storage: storage{
+			Type: "redis",
+			Redis: storageRedis{
+				TTL:      60,
+				Address:  addr,
+				Password: pass,
+				DB:       db,
+			},
+		},
+	}
+	sto, err := config.ConfigureStorage()
+	require.NoError(t, err)
+	require.IsType(t, &redis.Redis{}, sto)
+}
+
+func TestEventAPI_ConfigureStorage_invalidType(t *testing.T) {
+	config := EventAPI{
+		Storage: storage{
+			Type: "invalid",
+		},
+	}
+	_, err := config.ConfigureStorage()
+	require.Error(t, err)
+}
+
+func TestEventAPI_ConfigureStorage_defaultType(t *testing.T) {
+	config := EventAPI{}
+	sto, err := config.ConfigureStorage()
+	require.NoError(t, err)
+	require.IsType(t, &memory.Memory{}, sto)
 }
