@@ -34,8 +34,9 @@ import (
 
 func NewDeriveTf() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "derive-tf",
-		Short: "Derive keys from HD Mnemonic (Terraform External Data style)",
+		Use:     "derive-tf",
+		Aliases: []string{"dtf"},
+		Short:   "Derive keys from HD Mnemonic (Terraform External Data style)",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			var q query
 			err := json.NewDecoder(os.Stdin).Decode(&q)

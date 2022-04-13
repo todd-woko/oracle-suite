@@ -13,7 +13,6 @@ let
 in buildGoModule {
   pname = "oracle-suite";
   version = pkgs.lib.fileContents ./version;
-  #  version = "dev-${ver}";
   src = ./.;
   vendorSha256 = "9NNnkFCGFU/6pmBahnKU3Ck8vnPmvmQRGZNmCimY7CQ=";
   subPackages = [ "cmd/..." ];
