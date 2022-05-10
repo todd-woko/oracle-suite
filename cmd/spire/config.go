@@ -18,13 +18,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/chronicleprotocol/oracle-suite/internal/config"
 	ethereumConfig "github.com/chronicleprotocol/oracle-suite/internal/config/ethereum"
 	feedsConfig "github.com/chronicleprotocol/oracle-suite/internal/config/feeds"
+	loggerConfig "github.com/chronicleprotocol/oracle-suite/internal/config/logger"
 	spireConfig "github.com/chronicleprotocol/oracle-suite/internal/config/spire"
 	transportConfig "github.com/chronicleprotocol/oracle-suite/internal/config/transport"
 	"github.com/chronicleprotocol/oracle-suite/internal/supervisor"
+	"github.com/chronicleprotocol/oracle-suite/internal/sysmon"
 	"github.com/chronicleprotocol/oracle-suite/pkg/spire"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport/messages"
@@ -35,6 +38,7 @@ type Config struct {
 	Ethereum  ethereumConfig.Ethereum   `json:"ethereum"`
 	Spire     spireConfig.Spire         `json:"spire"`
 	Feeds     feedsConfig.Feeds         `json:"feeds"`
+	Logger    loggerConfig.Logger       `json:"logger"`
 }
 
 func PrepareAgentServices(ctx context.Context, opts *options) (*supervisor.Supervisor, error) {
@@ -42,7 +46,13 @@ func PrepareAgentServices(ctx context.Context, opts *options) (*supervisor.Super
 	if err != nil {
 		return nil, fmt.Errorf(`config error: %w`, err)
 	}
-	log := opts.Logger()
+	log, err := opts.Config.Logger.Configure(loggerConfig.Dependencies{
+		AppName:    "spire",
+		BaseLogger: opts.Logger(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf(`ethereum config error: %w`, err)
+	}
 	sig, err := opts.Config.Ethereum.ConfigureSigner()
 	if err != nil {
 		return nil, fmt.Errorf(`ethereum config error: %w`, err)
@@ -80,8 +90,8 @@ func PrepareAgentServices(ctx context.Context, opts *options) (*supervisor.Super
 	if err != nil {
 		return nil, fmt.Errorf(`spire config error: %w`, err)
 	}
-	sup := supervisor.New(ctx)
-	sup.Watch(tra, dat, age)
+	sup := supervisor.New(ctx, log)
+	sup.Watch(tra, dat, age, sysmon.New(time.Minute, log))
 	return sup, nil
 }
 
@@ -89,6 +99,13 @@ func PrepareClientServices(ctx context.Context, opts *options) (*supervisor.Supe
 	err := config.ParseFile(&opts.Config, opts.ConfigFilePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf(`config error: %w`, err)
+	}
+	log, err := opts.Config.Logger.Configure(loggerConfig.Dependencies{
+		AppName:    "spire",
+		BaseLogger: opts.Logger(),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf(`ethereum config error: %w`, err)
 	}
 	sig, err := opts.Config.Ethereum.ConfigureSigner()
 	if err != nil {
@@ -100,7 +117,7 @@ func PrepareClientServices(ctx context.Context, opts *options) (*supervisor.Supe
 	if err != nil {
 		return nil, nil, fmt.Errorf(`spire config error: %w`, err)
 	}
-	sup := supervisor.New(ctx)
+	sup := supervisor.New(ctx, log)
 	sup.Watch(cli)
 	return sup, cli, nil
 }

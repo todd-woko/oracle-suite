@@ -106,10 +106,18 @@ func (f *verbosityFlag) Verbosity() logrus.Level {
 // custom formatters to this map.
 var formattersMap = map[string]func() logrus.Formatter{
 	"text": func() logrus.Formatter {
-		return &formatter.XFilterFormatter{Formatter: &logrus.TextFormatter{}}
+		return &formatter.FieldSerializerFormatter{
+			UseJSONRawMessage: false,
+			Formatter: &formatter.XFilterFormatter{
+				Formatter: &logrus.TextFormatter{},
+			},
+		}
 	},
 	"json": func() logrus.Formatter {
-		return &formatter.JSONFormatter{}
+		return &formatter.FieldSerializerFormatter{
+			UseJSONRawMessage: true,
+			Formatter:         &formatter.JSONFormatter{},
+		}
 	},
 }
 

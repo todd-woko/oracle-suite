@@ -17,6 +17,7 @@ package ethereum
 
 import (
 	"context"
+	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -143,10 +144,12 @@ func (l *ethClientLogListener) nextLogs(ctx context.Context) ([]types.Log, error
 		if err = retry(func() error {
 			if l.log.Level() >= log.Debug {
 				l.log.
-					WithField("from", from).
-					WithField("to", to).
-					WithField("address", addr.String()).
-					WithField("topics", l.topics).
+					WithFields(log.Fields{
+						"from":    from,
+						"to":      to,
+						"address": addr.String(),
+						"topics":  l.topics,
+					}).
 					Debug("Fetching Ethereum logs")
 			}
 			logs, err = l.client.FilterLogs(ctx, geth.FilterQuery{
@@ -183,7 +186,7 @@ func (l *ethClientLogListener) nextBlockNumberRange(ctx context.Context) (uint64
 		return 0, 0, err
 	}
 	from := l.lastBlockNumber + 1
-	to := curr - l.blocksBehind
+	to := uint64(math.Max(0, float64(curr-l.blocksBehind)))
 	if from > to {
 		from = to
 	}

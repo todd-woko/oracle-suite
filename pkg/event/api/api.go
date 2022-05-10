@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/chronicleprotocol/oracle-suite/internal/httpserver"
+	"github.com/chronicleprotocol/oracle-suite/internal/httpserver/middleware"
 	"github.com/chronicleprotocol/oracle-suite/pkg/event/store"
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport/messages"
@@ -77,6 +78,7 @@ func New(cfg Config) (*EventAPI, error) {
 		ReadTimeout:  defaultTimeout,
 		WriteTimeout: defaultTimeout,
 	})
+	api.srv.Use(&middleware.Logger{Log: api.log})
 	return api, nil
 }
 
@@ -129,10 +131,11 @@ func (e *EventAPI) handler(res http.ResponseWriter, req *http.Request) {
 	_ = json.NewEncoder(res).Encode(mapEvents(events))
 }
 
-func mapEvents(es []*messages.Event) (r []*jsonEvent) {
+func mapEvents(es []*messages.Event) []*jsonEvent {
 	sort.Slice(es, func(i, j int) bool {
 		return es[i].MessageDate.Unix() < es[j].MessageDate.Unix()
 	})
+	r := make([]*jsonEvent, 0)
 	for _, e := range es {
 		j := &jsonEvent{
 			Timestamp:  e.EventDate.Unix(),

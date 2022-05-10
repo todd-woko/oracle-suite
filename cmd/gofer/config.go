@@ -18,18 +18,22 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/chronicleprotocol/oracle-suite/internal/config"
 	ethereumConfig "github.com/chronicleprotocol/oracle-suite/internal/config/ethereum"
 	goferConfig "github.com/chronicleprotocol/oracle-suite/internal/config/gofer"
+	loggerConfig "github.com/chronicleprotocol/oracle-suite/internal/config/logger"
 	"github.com/chronicleprotocol/oracle-suite/internal/gofer/marshal"
 	"github.com/chronicleprotocol/oracle-suite/internal/supervisor"
+	"github.com/chronicleprotocol/oracle-suite/internal/sysmon"
 	"github.com/chronicleprotocol/oracle-suite/pkg/gofer"
 )
 
 type Config struct {
 	Ethereum ethereumConfig.Ethereum `json:"ethereum"`
 	Gofer    goferConfig.Gofer       `json:"gofer"`
+	Logger   loggerConfig.Logger     `json:"logger"`
 }
 
 func PrepareClientServices(
@@ -41,7 +45,13 @@ func PrepareClientServices(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf(`config error: %w`, err)
 	}
-	log := opts.Logger()
+	log, err := opts.Config.Logger.Configure(loggerConfig.Dependencies{
+		AppName:    "gofer",
+		BaseLogger: opts.Logger(),
+	})
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf(`ethereum config error: %w`, err)
+	}
 	cli, err := opts.Config.Ethereum.ConfigureEthereumClient(nil)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf(`ethereum config error: %w`, err)
@@ -54,7 +64,7 @@ func PrepareClientServices(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf(`invalid format option: %w`, err)
 	}
-	sup := supervisor.New(ctx)
+	sup := supervisor.New(ctx, log)
 	if g, ok := gof.(gofer.StartableGofer); ok {
 		sup.Watch(g)
 	}
@@ -79,7 +89,7 @@ func PrepareAgentServices(ctx context.Context, opts *options) (*supervisor.Super
 	if err != nil {
 		return nil, fmt.Errorf(`gofer config error: %w`, err)
 	}
-	sup := supervisor.New(ctx)
-	sup.Watch(gof, age)
+	sup := supervisor.New(ctx, log)
+	sup.Watch(gof, age, sysmon.New(time.Minute, log))
 	return sup, nil
 }

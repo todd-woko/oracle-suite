@@ -18,12 +18,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/chronicleprotocol/oracle-suite/internal/config"
 	eventAPIConfig "github.com/chronicleprotocol/oracle-suite/internal/config/eventapi"
 	feedsConfig "github.com/chronicleprotocol/oracle-suite/internal/config/feeds"
+	loggerConfig "github.com/chronicleprotocol/oracle-suite/internal/config/logger"
 	transportConfig "github.com/chronicleprotocol/oracle-suite/internal/config/transport"
 	"github.com/chronicleprotocol/oracle-suite/internal/supervisor"
+	"github.com/chronicleprotocol/oracle-suite/internal/sysmon"
 	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum/geth"
 	"github.com/chronicleprotocol/oracle-suite/pkg/event/store"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport"
@@ -34,6 +37,7 @@ type Config struct {
 	Lair      eventAPIConfig.EventAPI   `json:"lair"`
 	Transport transportConfig.Transport `json:"transport"`
 	Feeds     feedsConfig.Feeds         `json:"feeds"`
+	Logger    loggerConfig.Logger       `json:"logger"`
 }
 
 func PrepareServices(ctx context.Context, opts *options) (*supervisor.Supervisor, error) {
@@ -41,7 +45,13 @@ func PrepareServices(ctx context.Context, opts *options) (*supervisor.Supervisor
 	if err != nil {
 		return nil, fmt.Errorf(`config error: %w`, err)
 	}
-	log := opts.Logger()
+	log, err := opts.Config.Logger.Configure(loggerConfig.Dependencies{
+		AppName:    "lair",
+		BaseLogger: opts.Logger(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf(`ethereum config error: %w`, err)
+	}
 	fed, err := opts.Config.Feeds.Addresses()
 	if err != nil {
 		return nil, fmt.Errorf(`feeds config error: %w`, err)
@@ -76,7 +86,7 @@ func PrepareServices(ctx context.Context, opts *options) (*supervisor.Supervisor
 	if err != nil {
 		return nil, fmt.Errorf(`lair config error: %w`, err)
 	}
-	sup := supervisor.New(ctx)
-	sup.Watch(tra, evs, api)
+	sup := supervisor.New(ctx, log)
+	sup.Watch(tra, evs, api, sysmon.New(time.Minute, log))
 	return sup, nil
 }

@@ -35,7 +35,7 @@ import (
 )
 
 const defaultTTL = 60 * time.Second
-const maxTTL = 60 * time.Second
+const maxTTL = 240 * time.Second
 
 type ErrCyclicReference struct {
 	Pair gofer.Pair
@@ -154,9 +154,9 @@ func (c *Gofer) configureRPCClient() (*rpc.Gofer, error) {
 }
 
 func (c *Gofer) buildOrigins(cli pkgEthereum.Client) (*origins.Set, error) {
-	const defaultWorkerCount = 5
+	const defaultWorkerCount = 10
 	wp := query.NewHTTPWorkerPool(defaultWorkerCount)
-	originSet := origins.DefaultOriginSet(wp, defaultWorkerCount)
+	originSet := origins.DefaultOriginSet(wp)
 	for name, origin := range c.Origins {
 		handler, err := NewHandler(origin.Type, wp, cli, origin.URL, origin.Params)
 		if err != nil || handler == nil {

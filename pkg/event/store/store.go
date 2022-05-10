@@ -17,6 +17,7 @@ package store
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
@@ -45,9 +46,10 @@ type Config struct {
 
 // Storage provides an interface to the event storage mechanism.
 type Storage interface {
-	// Add adds a message to the store. If the message already exists, it will
-	// be updated if the MessageDate is newer. The method is thread-safe.
-	Add(ctx context.Context, author []byte, evt *messages.Event) error
+	// Add adds an event to the store. If the event already exists, it will be
+	// updated if the MessageDate is newer. The first argument is true if the
+	// event was added, false if it was replaced. The method is thread-safe.
+	Add(ctx context.Context, author []byte, evt *messages.Event) (bool, error)
 	// Get returns messages form the store for the given type and index. If the
 	// message does not exist, nil will be returned. The method is thread-safe.
 	Get(ctx context.Context, typ string, idx []byte) ([]*messages.Event, error)
@@ -64,10 +66,13 @@ func New(cfg Config) (*EventStore, error) {
 }
 
 func (e *EventStore) Start(ctx context.Context) error {
-	e.log.Info("Starting")
+	if e.ctx != nil {
+		return errors.New("service can be started only once")
+	}
 	if ctx == nil {
 		return errors.New("context must not be nil")
 	}
+	e.log.Info("Starting")
 	e.ctx = ctx
 	go e.eventCollectorRoutine()
 	go e.contextCancelHandler()
@@ -94,12 +99,25 @@ func (e *EventStore) eventCollectorRoutine() {
 				e.log.WithError(msg.Error).Error("Unable to read events from the transport layer")
 				continue
 			}
-			evtMsg, ok := msg.Message.(*messages.Event)
+			evt, ok := msg.Message.(*messages.Event)
 			if !ok {
 				e.log.Error("Unexpected value returned from the transport layer")
 				continue
 			}
-			err := e.storage.Add(e.ctx, msg.Author, evtMsg)
+			isNew, err := e.storage.Add(e.ctx, msg.Author, evt)
+			e.log.
+				WithFields(log.Fields{
+					"id":          hex.EncodeToString(evt.ID),
+					"type":        evt.Type,
+					"index":       hex.EncodeToString(evt.Index),
+					"eventDate":   evt.EventDate,
+					"messageDate": evt.MessageDate,
+					"data":        evt.Data,
+					"signatures":  evt.Signatures,
+					"from":        msg.Author,
+					"new":         isNew,
+				}).
+				Info("Event received")
 			if err != nil {
 				e.log.WithError(msg.Error).Error("Unable to store the event")
 				continue
