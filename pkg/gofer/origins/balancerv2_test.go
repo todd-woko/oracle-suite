@@ -16,8 +16,10 @@
 package origins
 
 import (
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum"
@@ -35,23 +37,26 @@ type BalancerV2Suite struct {
 
 func (suite *BalancerV2Suite) SetupSuite() {
 	suite.addresses = ContractAddresses{
-		"STETH/ETH": "0x32296969ef14eb0c6d29669c550d4a0449130230",
+		"Ref:RETH/WETH": "0xae78736Cd615f374D3085123A210448E74Fc6393",
+		"RETH/WETH":     "0x1E19CF2D73a72Ef1332C882F20534B6519Be0276",
+		"STETH/WETH":    "0x32296969ef14eb0c6d29669c550d4a0449130230",
+		"WETH/YFI":      "0x186084ff790c65088ba694df11758fae4943ee9e",
 	}
-	suite.client = &ethereumMocks.Client{}
 }
 func (suite *BalancerV2Suite) TearDownSuite() {
 	suite.addresses = nil
-	suite.client = nil
 }
 
 func (suite *BalancerV2Suite) SetupTest() {
-	balancerV2Finance, err := NewBalancerV2(suite.client, suite.addresses)
+	suite.client = &ethereumMocks.Client{}
+	o, err := NewBalancerV2(suite.client, suite.addresses, []int64{0, 10, 20})
 	suite.NoError(err)
-	suite.origin = NewBaseExchangeHandler(balancerV2Finance, nil)
+	suite.origin = NewBaseExchangeHandler(o, nil)
 }
 
 func (suite *BalancerV2Suite) TearDownTest() {
 	suite.origin = nil
+	suite.client = nil
 }
 
 func (suite *BalancerV2Suite) Origin() Handler {
@@ -63,17 +68,73 @@ func TestBalancerV2Suite(t *testing.T) {
 }
 
 func (suite *BalancerV2Suite) TestSuccessResponse() {
-	suite.client.On("Call", mock.Anything, ethereum.Call{
-		Address: ethereum.HexToAddress("0x32296969Ef14EB0c6d29669C550D4a0449130230"),
-		Data:    ethereum.HexToBytes("0xb10be7390000000000000000000000000000000000000000000000000000000000000000"),
-	}).Return(ethereum.HexToBytes("0x0000000000000000000000000000000000000000000000000dc19f91822f3fe3"), nil)
+	resp := [][]byte{
+		common.BigToHash(big.NewInt(0.94 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.98 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.99 * 1e18)).Bytes(),
+	}
+	suite.client.On(
+		"CallBlocks",
+		mock.Anything,
+		ethereum.Call{
+			Address: ethereum.HexToAddress("0x32296969Ef14EB0c6d29669C550D4a0449130230"),
+			Data:    ethereum.HexToBytes("0xb10be7390000000000000000000000000000000000000000000000000000000000000000"),
+		},
+		[]int64{0, 10, 20},
+	).Return(resp, nil).Once()
 
-	pair := Pair{Base: "STETH", Quote: "ETH"}
+	pair := Pair{Base: "STETH", Quote: "WETH"}
 
 	results1 := suite.origin.Fetch([]Pair{pair})
 	suite.Require().NoError(results1[0].Error)
-	suite.Equal(0.9912488403014287, results1[0].Price.Price)
+	suite.Equal(0.97, results1[0].Price.Price)
 	suite.Greater(results1[0].Price.Timestamp.Unix(), int64(0))
+
+	suite.client.AssertNumberOfCalls(suite.T(), "CallBlocks", 1)
+
+	results2 := suite.origin.Fetch([]Pair{pair.Inverse()})
+	suite.Require().Error(results2[0].Error)
+}
+
+func (suite *BalancerV2Suite) TestSuccessResponseWithRef() {
+	resp := [][]byte{
+		common.BigToHash(big.NewInt(0.94 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.98 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.99 * 1e18)).Bytes(),
+	}
+	suite.client.On(
+		"CallBlocks",
+		mock.Anything,
+		ethereum.Call{
+			Address: ethereum.HexToAddress("0x1E19CF2D73a72Ef1332C882F20534B6519Be0276"),
+			Data:    ethereum.HexToBytes("0xb10be7390000000000000000000000000000000000000000000000000000000000000000"),
+		},
+		[]int64{0, 10, 20},
+	).Return(resp, nil).Once()
+
+	resp1 := [][]byte{
+		common.BigToHash(big.NewInt(0.2 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.6 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.7 * 1e18)).Bytes(),
+	}
+	suite.client.On(
+		"CallBlocks",
+		mock.Anything,
+		ethereum.Call{
+			Address: ethereum.HexToAddress("0x1E19CF2D73a72Ef1332C882F20534B6519Be0276"),
+			Data:    ethereum.HexToBytes("0xb867ee5a000000000000000000000000ae78736cd615f374d3085123a210448e74fc6393"),
+		},
+		[]int64{0, 10, 20},
+	).Return(resp1, nil).Once()
+
+	pair := Pair{Base: "RETH", Quote: "WETH"}
+
+	results1 := suite.origin.Fetch([]Pair{pair})
+	suite.Require().NoError(results1[0].Error)
+	suite.Equal(0.485, results1[0].Price.Price)
+	suite.Greater(results1[0].Price.Timestamp.Unix(), int64(0))
+
+	suite.client.AssertNumberOfCalls(suite.T(), "CallBlocks", 2)
 
 	results2 := suite.origin.Fetch([]Pair{pair.Inverse()})
 	suite.Require().Error(results2[0].Error)

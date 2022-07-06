@@ -25,7 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
-	pkgEthereum "github.com/chronicleprotocol/oracle-suite/pkg/ethereum"
+	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum"
 )
 
 // The three values that can be queried:
@@ -42,29 +42,30 @@ import (
 // - INVARIANT: the value of the Pool's invariant, which serves as a measure of its liquidity.
 // enum Variable { PAIR_PRICE, BPT_PRICE, INVARIANT }
 
+const prefixRef = "Ref:"
+
 //go:embed balancerv2_abi.json
 var balancerV2PoolABI string
 
-// TODO: should be configurable
-const balancerV2Denominator = 1e18
-
 type BalancerV2 struct {
-	ethClient         pkgEthereum.Client
+	ethClient         ethereum.Client
 	ContractAddresses ContractAddresses
 	abi               abi.ABI
 	variable          byte
+	blocks            []int64
 }
 
-func NewBalancerV2(cli pkgEthereum.Client, addrs ContractAddresses) (*BalancerV2, error) {
+func NewBalancerV2(ethClient ethereum.Client, addrs ContractAddresses, blocks []int64) (*BalancerV2, error) {
 	a, err := abi.JSON(strings.NewReader(balancerV2PoolABI))
 	if err != nil {
 		return nil, err
 	}
 	return &BalancerV2{
-		ethClient:         cli,
+		ethClient:         ethClient,
 		ContractAddresses: addrs,
 		abi:               a,
 		variable:          0, // PAIR_PRICE
+		blocks:            blocks,
 	}, nil
 }
 
@@ -73,26 +74,41 @@ func (s BalancerV2) PullPrices(pairs []Pair) []FetchResult {
 }
 
 func (s BalancerV2) callOne(pair Pair) (*Price, error) {
-	contract, inverted, err := s.ContractAddresses.AddressByPair(pair)
+	contract, indirect, err := s.ContractAddresses.AddressByPair(pair)
 	if err != nil {
 		return nil, err
 	}
-	if inverted {
+	if indirect {
 		return nil, fmt.Errorf("cannot use inverted pair to retrieve price: %s", pair.String())
 	}
+	var priceFloat *big.Float
+	{
+		callData, err := s.abi.Pack("getLatest", s.variable)
+		if err != nil {
+			return nil, fmt.Errorf("failed to pack contract args for getLatest (pair %s): %w", pair.String(), err)
+		}
 
-	var callData []byte
-	callData, err = s.abi.Pack("getLatest", s.variable)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack contract args for pair %s: %w", pair.String(), err)
+		resp, err := s.ethClient.CallBlocks(context.Background(), ethereum.Call{Address: contract, Data: callData}, s.blocks)
+		if err != nil {
+			return nil, err
+		}
+		priceFloat = reduceEtherAverageFloat(resp)
 	}
 
-	resp, err := s.ethClient.Call(context.Background(), pkgEthereum.Call{Address: contract, Data: callData})
-	if err != nil {
-		return nil, err
+	token, inverted, ok := s.ContractAddresses.ByPair(Pair{Base: prefixRef + pair.Base, Quote: pair.Quote})
+	if ok && !inverted {
+		callData, err := s.abi.Pack("getPriceRateCache", ethereum.HexToAddress(token))
+		if err != nil {
+			return nil, fmt.Errorf("failed to pack contract args for getPriceRateCache (pair %s): %w", pair.String(), err)
+		}
+		resp, err := s.ethClient.CallBlocks(context.Background(), ethereum.Call{Address: contract, Data: callData}, s.blocks)
+		if err != nil {
+			return nil, err
+		}
+		priceFloat = new(big.Float).Mul(reduceEtherAverageFloat(resp), priceFloat)
 	}
-	bn := new(big.Int).SetBytes(resp)
-	price, _ := new(big.Float).Quo(new(big.Float).SetInt(bn), new(big.Float).SetUint64(balancerV2Denominator)).Float64()
+
+	price, _ := priceFloat.Float64()
 
 	return &Price{
 		Pair:      pair,

@@ -99,6 +99,15 @@ func NewClient(ethClient EthClient, signer pkgEthereum.Signer) *Client {
 	}
 }
 
+// BlockNumber implements the ethereum.Client interface.
+func (e *Client) BlockNumber(ctx context.Context) (*big.Int, error) {
+	n, err := e.ethClient.BlockNumber(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return new(big.Int).SetUint64(n), nil
+}
+
 // Call implements the ethereum.Client interface.
 func (e *Client) Call(ctx context.Context, call pkgEthereum.Call) ([]byte, error) {
 	addr := common.Address{}
@@ -115,7 +124,7 @@ func (e *Client) Call(ctx context.Context, call pkgEthereum.Call) ([]byte, error
 		Data:     call.Data,
 	}
 
-	resp, err := e.ethClient.CallContract(ctx, cm, nil)
+	resp, err := e.ethClient.CallContract(ctx, cm, pkgEthereum.BlockNumberFromContext(ctx))
 	if err := isRevertErr(err); err != nil {
 		return nil, err
 	}
@@ -127,6 +136,27 @@ func (e *Client) Call(ctx context.Context, call pkgEthereum.Call) ([]byte, error
 	}
 
 	return resp, err
+}
+
+func (e *Client) CallBlocks(ctx context.Context, call pkgEthereum.Call, blocks []int64) ([][]byte, error) {
+	blockNumber, err := e.BlockNumber(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block number: %w", err)
+	}
+
+	var resps [][]byte
+	for _, block := range blocks {
+		r, err := e.Call(
+			pkgEthereum.WithBlockNumber(ctx, new(big.Int).Sub(blockNumber, big.NewInt(block))),
+			call,
+		)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, r)
+	}
+
+	return resps, nil
 }
 
 // MultiCall implements the ethereum.Client interface.
@@ -169,7 +199,7 @@ func (e *Client) MultiCall(ctx context.Context, calls []pkgEthereum.Call) ([][]b
 
 // Storage implements the ethereum.Client interface.
 func (e *Client) Storage(ctx context.Context, address pkgEthereum.Address, key pkgEthereum.Hash) ([]byte, error) {
-	return e.ethClient.StorageAt(ctx, address, key, nil)
+	return e.ethClient.StorageAt(ctx, address, key, pkgEthereum.BlockNumberFromContext(ctx))
 }
 
 // SendTransaction implements the ethereum.Client interface.

@@ -19,7 +19,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"math/big"
 	"strings"
 	"time"
 
@@ -31,15 +30,16 @@ import (
 //go:embed wsteth_abi.json
 var wrappedStakedETHABI string
 
-const wsethDenominator = 1e18
+const ether uint64 = 1e18
 
 type WrappedStakedETH struct {
 	ethClient ethereum.Client
 	addrs     ContractAddresses
 	abi       abi.ABI
+	blocks    []int64
 }
 
-func NewWrappedStakedETH(cli ethereum.Client, addrs ContractAddresses) (*WrappedStakedETH, error) {
+func NewWrappedStakedETH(cli ethereum.Client, addrs ContractAddresses, blocks []int64) (*WrappedStakedETH, error) {
 	a, err := abi.JSON(strings.NewReader(wrappedStakedETHABI))
 	if err != nil {
 		return nil, err
@@ -48,15 +48,8 @@ func NewWrappedStakedETH(cli ethereum.Client, addrs ContractAddresses) (*Wrapped
 		ethClient: cli,
 		addrs:     addrs,
 		abi:       a,
+		blocks:    blocks,
 	}, nil
-}
-
-func (s WrappedStakedETH) pairsToContractAddress(pair Pair) (ethereum.Address, bool, error) {
-	contract, inverted, ok := s.addrs.ByPair(pair)
-	if !ok {
-		return ethereum.Address{}, inverted, fmt.Errorf("failed to get Curve contract address for pair: %s", pair.String())
-	}
-	return ethereum.HexToAddress(contract), inverted, nil
 }
 
 func (s WrappedStakedETH) PullPrices(pairs []Pair) []FetchResult {
@@ -64,7 +57,7 @@ func (s WrappedStakedETH) PullPrices(pairs []Pair) []FetchResult {
 }
 
 func (s WrappedStakedETH) callOne(pair Pair) (*Price, error) {
-	contract, inverted, err := s.pairsToContractAddress(pair)
+	contract, inverted, err := s.addrs.AddressByPair(pair)
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +72,12 @@ func (s WrappedStakedETH) callOne(pair Pair) (*Price, error) {
 		return nil, fmt.Errorf("failed to get contract args for pair: %s", pair.String())
 	}
 
-	resp, err := s.ethClient.Call(context.Background(), ethereum.Call{Address: contract, Data: callData})
+	resp, err := s.ethClient.CallBlocks(context.Background(), ethereum.Call{Address: contract, Data: callData}, s.blocks)
 	if err != nil {
 		return nil, err
 	}
-	bn := new(big.Int).SetBytes(resp)
-	price, _ := new(big.Float).Quo(new(big.Float).SetInt(bn), new(big.Float).SetUint64(wsethDenominator)).Float64()
 
+	price, _ := reduceEtherAverageFloat(resp).Float64()
 	return &Price{
 		Pair:      pair,
 		Price:     price,

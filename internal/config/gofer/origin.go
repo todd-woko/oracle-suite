@@ -24,6 +24,10 @@ import (
 	"github.com/chronicleprotocol/oracle-suite/pkg/gofer/origins"
 )
 
+// averageFromBlocks is a list of blocks distances from the latest blocks from
+// which prices will be averaged.
+var averageFromBlocks = []int64{0, 10, 20}
+
 func parseParamsSymbolAliases(params json.RawMessage) (origins.SymbolAliases, error) {
 	if params == nil {
 		return nil, fmt.Errorf("invalid origin parameters")
@@ -69,14 +73,14 @@ func parseParamsContracts(params json.RawMessage) (origins.ContractAddresses, er
 	return res.Contracts, nil
 }
 
-//nolint:funlen,gocyclo
+//nolint:funlen,gocyclo,whitespace
 func NewHandler(
 	origin string,
 	wp query.WorkerPool,
 	cli pkgEthereum.Client,
 	baseURL string,
-	params json.RawMessage) (origins.Handler, error) {
-
+	params json.RawMessage,
+) (origins.Handler, error) {
 	aliases, err := parseParamsSymbolAliases(params)
 	if err != nil {
 		return nil, err
@@ -142,12 +146,12 @@ func NewHandler(
 		return origins.NewBaseExchangeHandler(origins.Kraken{WorkerPool: wp, BaseURL: baseURL}, aliases), nil
 	case "kucoin":
 		return origins.NewBaseExchangeHandler(origins.Kucoin{WorkerPool: wp, BaseURL: baseURL}, aliases), nil
-	case "kyber":
-		return origins.NewBaseExchangeHandler(origins.Kyber{WorkerPool: wp, BaseURL: baseURL}, aliases), nil
 	case "loopring":
 		return origins.NewBaseExchangeHandler(origins.Loopring{WorkerPool: wp, BaseURL: baseURL}, aliases), nil
 	case "okex":
 		return origins.NewBaseExchangeHandler(origins.Okex{WorkerPool: wp, BaseURL: baseURL}, aliases), nil
+	case "okx":
+		return origins.NewBaseExchangeHandler(origins.Okx{WorkerPool: wp, BaseURL: baseURL}, aliases), nil
 	case "openexchangerates":
 		apiKey, err := parseParamsAPIKey(params)
 		if err != nil {
@@ -174,7 +178,7 @@ func NewHandler(
 		if err != nil {
 			return nil, err
 		}
-		h, err := origins.NewCurveFinance(cli, contracts)
+		h, err := origins.NewCurveFinance(cli, contracts, averageFromBlocks)
 		if err != nil {
 			return nil, err
 		}
@@ -184,7 +188,7 @@ func NewHandler(
 		if err != nil {
 			return nil, err
 		}
-		h, err := origins.NewBalancerV2(cli, contracts)
+		h, err := origins.NewBalancerV2(cli, contracts, averageFromBlocks)
 		if err != nil {
 			return nil, err
 		}
@@ -194,7 +198,17 @@ func NewHandler(
 		if err != nil {
 			return nil, err
 		}
-		h, err := origins.NewWrappedStakedETH(cli, contracts)
+		h, err := origins.NewWrappedStakedETH(cli, contracts, averageFromBlocks)
+		if err != nil {
+			return nil, err
+		}
+		return origins.NewBaseExchangeHandler(*h, aliases), nil
+	case "rocketpool":
+		contracts, err := parseParamsContracts(params)
+		if err != nil {
+			return nil, err
+		}
+		h, err := origins.NewRockerPool(cli, contracts, averageFromBlocks)
 		if err != nil {
 			return nil, err
 		}

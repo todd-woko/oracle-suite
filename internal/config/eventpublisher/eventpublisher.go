@@ -18,13 +18,19 @@ package eventpublisher
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	ethereumConfig "github.com/chronicleprotocol/oracle-suite/internal/config/ethereum"
+	starknetClient "github.com/chronicleprotocol/oracle-suite/internal/starknet"
 	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum"
 	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum/geth"
 	"github.com/chronicleprotocol/oracle-suite/pkg/event/publisher"
 	publisherEthereum "github.com/chronicleprotocol/oracle-suite/pkg/event/publisher/ethereum"
+	publisherStarknet "github.com/chronicleprotocol/oracle-suite/pkg/event/publisher/starknet"
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport"
 )
@@ -39,15 +45,24 @@ type EventPublisher struct {
 }
 
 type listeners struct {
-	Wormhole []wormholeListener `json:"wormhole"`
+	TeleportEVM      []teleportEVMListener      `json:"teleportEVM"`
+	TeleportStarknet []teleportStarknetListener `json:"teleportStarknet"`
 }
 
-type wormholeListener struct {
-	RPC          interface{} `json:"rpc"`
-	Interval     int64       `json:"interval"`
-	BlocksBehind []int       `json:"blocksBehind"`
-	MaxBlocks    int         `json:"maxBlocks"`
-	Addresses    []string    `json:"addresses"`
+type teleportEVMListener struct {
+	Ethereum    ethereumConfig.Ethereum `json:"ethereum"`
+	Interval    int64                   `json:"interval"`
+	BlocksDelta []int                   `json:"blocksDelta"`
+	BlocksLimit int                     `json:"blocksLimit"`
+	Addresses   []common.Address        `json:"addresses"`
+}
+
+type teleportStarknetListener struct {
+	Sequencer   string                 `json:"sequencer"`
+	Interval    int64                  `json:"interval"`
+	BlocksDelta []int                  `json:"blocksDelta"`
+	BlocksLimit int                    `json:"blocksLimit"`
+	Addresses   []*starknetClient.Felt `json:"addresses"`
 }
 
 type Dependencies struct {
@@ -67,39 +82,16 @@ func (c *EventPublisher) Configure(d Dependencies) (*publisher.EventPublisher, e
 		return nil, fmt.Errorf("eventpublisher config: logger cannot be nil")
 	}
 	var lis []publisher.Listener
-	var sig []publisher.Signer
-	clis := ethClients{}
-	for _, w := range c.Listeners.Wormhole {
-		cli, err := clis.configure(w.RPC)
-		if err != nil {
-			return nil, fmt.Errorf("eventpublisher config: %w", err)
-		}
-		var addrs []ethereum.Address
-		for _, addr := range w.Addresses {
-			addrs = append(addrs, ethereum.HexToAddress(addr))
-		}
-		interval := w.Interval
-		if interval < 1 {
-			interval = 1
-		}
-		if len(w.BlocksBehind) < 1 {
-			return nil, fmt.Errorf("eventpublisher config: blocksBehind must contains at least one element")
-		}
-		if w.MaxBlocks <= 0 {
-			return nil, fmt.Errorf("eventpublisher config: maxBlocks must greather than 0")
-		}
-		for _, blocksBehind := range w.BlocksBehind {
-			lis = append(lis, publisherEthereum.NewWormholeListener(publisherEthereum.WormholeListenerConfig{
-				Client:       cli,
-				Addresses:    addrs,
-				Interval:     time.Second * time.Duration(interval),
-				BlocksBehind: blocksBehind,
-				MaxBlocks:    w.MaxBlocks,
-				Logger:       d.Logger,
-			}))
-		}
-		sig = append(sig, publisherEthereum.NewSigner(d.Signer, []string{publisherEthereum.WormholeEventType}))
+	if err := c.configureTeleportEVMListeners(&lis, d.Logger); err != nil {
+		return nil, fmt.Errorf("eventpublisher config: %w", err)
 	}
+	if err := c.configureTeleportStarknetListeners(&lis, d.Logger); err != nil {
+		return nil, fmt.Errorf("eventpublisher config: %w", err)
+	}
+	sig := []publisher.Signer{publisherEthereum.NewSigner(d.Signer, []string{
+		publisherEthereum.TeleportEventType,
+		publisherStarknet.TeleportEventType,
+	})}
 	cfg := publisher.Config{
 		Listeners: lis,
 		Signers:   sig,
@@ -113,20 +105,76 @@ func (c *EventPublisher) Configure(d Dependencies) (*publisher.EventPublisher, e
 	return ep, nil
 }
 
+func (c *EventPublisher) configureTeleportEVMListeners(lis *[]publisher.Listener, logger log.Logger) error {
+	clis := ethClients{}
+	for _, w := range c.Listeners.TeleportEVM {
+		cli, err := clis.configure(w.Ethereum, logger)
+		if err != nil {
+			return err
+		}
+		interval := w.Interval
+		if interval < 1 {
+			interval = 1
+		}
+		if len(w.BlocksDelta) < 1 {
+			return fmt.Errorf("blocksDelta must contains at least one element")
+		}
+		if w.BlocksLimit <= 0 {
+			return fmt.Errorf("blocksLimit must greather than 0")
+		}
+		*lis = append(*lis, publisherEthereum.NewTeleportListener(publisherEthereum.TeleportListenerConfig{
+			Client:      cli,
+			Addresses:   w.Addresses,
+			Interval:    time.Second * time.Duration(interval),
+			BlocksDelta: w.BlocksDelta,
+			BlocksLimit: w.BlocksLimit,
+			Logger:      logger,
+		}))
+	}
+	return nil
+}
+
+func (c *EventPublisher) configureTeleportStarknetListeners(lis *[]publisher.Listener, logger log.Logger) error {
+	for _, w := range c.Listeners.TeleportStarknet {
+		interval := w.Interval
+		if interval < 1 {
+			interval = 1
+		}
+		if _, err := url.Parse(w.Sequencer); err != nil {
+			return fmt.Errorf("sequencer address is not valid url: %w", err)
+		}
+		if len(w.BlocksDelta) < 1 {
+			return fmt.Errorf("blocksDelta must contains at least one element")
+		}
+		if w.BlocksLimit <= 0 {
+			return fmt.Errorf("blocksLimit must greather than 0")
+		}
+		*lis = append(*lis, publisherStarknet.NewTeleportListener(publisherStarknet.TeleportListenerConfig{
+			Sequencer:   starknetClient.NewSequencer(w.Sequencer, http.Client{}),
+			Addresses:   w.Addresses,
+			Interval:    time.Second * time.Duration(interval),
+			BlocksDelta: w.BlocksDelta,
+			BlocksLimit: w.BlocksLimit,
+			Logger:      logger,
+		}))
+	}
+	return nil
+}
+
 type ethClients map[string]geth.EthClient
 
-// configure returns an Ethereum client for given RPC endpoints.
-// Returned client will be reused if provided RPCs are the same.
-func (m ethClients) configure(rpc interface{}) (geth.EthClient, error) {
-	key, err := json.Marshal(rpc)
+// configure returns an Ethereum client for given configuration.
+// It will return the same instance of the client for the same
+// configuration.
+func (m ethClients) configure(ethereum ethereumConfig.Ethereum, logger log.Logger) (geth.EthClient, error) {
+	key, err := json.Marshal(ethereum)
 	if err != nil {
 		return nil, err
 	}
 	if c, ok := m[string(key)]; ok {
 		return c, nil
 	}
-	e := &ethereumConfig.Ethereum{RPC: rpc}
-	c, err := e.ConfigureRPCClient()
+	c, err := ethereum.ConfigureRPCClient(logger)
 	if err != nil {
 		return nil, err
 	}

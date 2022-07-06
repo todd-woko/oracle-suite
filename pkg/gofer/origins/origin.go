@@ -17,6 +17,7 @@ package origins
 
 import (
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -70,13 +71,12 @@ func (h BaseExchangeHandler) Fetch(pairs []Pair) []FetchResult {
 type ContractAddresses map[string]string
 
 func (c ContractAddresses) ByPair(p Pair) (string, bool, bool) {
-	var inverted bool
 	contract, ok := c[fmt.Sprintf("%s/%s", p.Base, p.Quote)]
 	if !ok {
-		inverted = true
 		contract, ok = c[fmt.Sprintf("%s/%s", p.Quote, p.Base)]
+		return contract, true, ok
 	}
-	return contract, inverted, ok
+	return contract, false, ok
 }
 
 func (c ContractAddresses) AddressByPair(pair Pair) (ethereum.Address, bool, error) {
@@ -271,9 +271,9 @@ func DefaultOriginSet(pool query.WorkerPool) *Set {
 		"huobi":         NewBaseExchangeHandler(Huobi{WorkerPool: pool}, nil),
 		"kraken":        NewBaseExchangeHandler(Kraken{WorkerPool: pool}, nil),
 		"kucoin":        NewBaseExchangeHandler(Kucoin{WorkerPool: pool}, nil),
-		"kyber":         NewBaseExchangeHandler(Kyber{WorkerPool: pool}, nil),
 		"loopring":      NewBaseExchangeHandler(Loopring{WorkerPool: pool}, nil),
 		"okex":          NewBaseExchangeHandler(Okex{WorkerPool: pool}, nil),
+		"okx":           NewBaseExchangeHandler(Okx{WorkerPool: pool}, nil),
 		"upbit":         NewBaseExchangeHandler(Upbit{WorkerPool: pool}, nil),
 	})
 }
@@ -322,4 +322,16 @@ func buildOriginURL(template, configURL, defaultURL string, a ...interface{}) st
 	replacement = append(replacement, a...)
 
 	return fmt.Sprintf(template, replacement...)
+}
+
+func reduceEtherAverageFloat(r [][]byte) *big.Float {
+	total := new(big.Float).SetInt64(0)
+	for _, resp := range r {
+		price := new(big.Int).SetBytes(resp)
+		total = new(big.Float).Add(
+			total,
+			new(big.Float).Quo(new(big.Float).SetInt(price), new(big.Float).SetUint64(ether)),
+		)
+	}
+	return new(big.Float).Quo(total, new(big.Float).SetUint64(uint64(len(r))))
 }

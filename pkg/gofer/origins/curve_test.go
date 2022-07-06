@@ -16,8 +16,10 @@
 package origins
 
 import (
+	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum"
@@ -37,21 +39,21 @@ func (suite *CurveSuite) SetupSuite() {
 	suite.addresses = ContractAddresses{
 		"ETH/STETH": "0xDC24316b9AE028F1497c275EB9192a3Ea0f67022",
 	}
-	suite.client = &ethereumMocks.Client{}
 }
 func (suite *CurveSuite) TearDownSuite() {
 	suite.addresses = nil
-	suite.client = nil
 }
 
 func (suite *CurveSuite) SetupTest() {
-	curveFinance, err := NewCurveFinance(suite.client, suite.addresses)
+	suite.client = &ethereumMocks.Client{}
+	o, err := NewCurveFinance(suite.client, suite.addresses, []int64{0, 10, 20})
 	suite.NoError(err)
-	suite.origin = NewBaseExchangeHandler(curveFinance, nil)
+	suite.origin = NewBaseExchangeHandler(o, nil)
 }
 
 func (suite *CurveSuite) TearDownTest() {
 	suite.origin = nil
+	suite.client = nil
 }
 
 func (suite *CurveSuite) Origin() Handler {
@@ -63,27 +65,56 @@ func TestCurveSuite(t *testing.T) {
 }
 
 func (suite *CurveSuite) TestSuccessResponse() {
-	suite.client.On("Call", mock.Anything, ethereum.Call{
-		Address: ethereum.HexToAddress("0xDC24316b9AE028F1497c275EB9192a3Ea0f67022"),
-		Data:    ethereum.HexToBytes("0x5e0d443f000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000"),
-	}).Return(ethereum.HexToBytes("0x0000000000000000000000000000000000000000000000000dc19f91822f3fe3"), nil)
+	resp := [][]byte{
+		common.BigToHash(big.NewInt(0.94 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.98 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.99 * 1e18)).Bytes(),
+	}
+	suite.client.On(
+		"CallBlocks",
+		mock.Anything,
+		ethereum.Call{
+			Address: ethereum.HexToAddress("0xDC24316b9AE028F1497c275EB9192a3Ea0f67022"),
+			Data:    ethereum.HexToBytes("0x5e0d443f000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000de0b6b3a7640000"),
+		},
+		[]int64{0, 10, 20},
+	).Return(resp, nil).Once()
+
+	pair := Pair{Base: "STETH", Quote: "ETH"}
+	results1 := suite.origin.Fetch([]Pair{pair})
+	suite.Require().NoError(results1[0].Error)
+	suite.Equal(0.97, results1[0].Price.Price)
+	suite.Greater(results1[0].Price.Timestamp.Unix(), int64(0))
+
+	suite.client.AssertNumberOfCalls(suite.T(), "CallBlocks", 1)
+}
+
+func (suite *CurveSuite) TestSuccessResponse_Inverse() {
+	resp := [][]byte{
+		common.BigToHash(big.NewInt(0.94 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.98 * 1e18)).Bytes(),
+		common.BigToHash(big.NewInt(0.99 * 1e18)).Bytes(),
+	}
+
+	suite.client.On(
+		"CallBlocks",
+		mock.Anything,
+		ethereum.Call{
+			Address: ethereum.HexToAddress("0xDC24316b9AE028F1497c275EB9192a3Ea0f67022"),
+			Data:    ethereum.HexToBytes("0x5e0d443f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000"),
+		},
+		[]int64{0, 10, 20},
+	).Return(resp, nil).Once()
 
 	pair := Pair{Base: "STETH", Quote: "ETH"}
 
-	results1 := suite.origin.Fetch([]Pair{pair})
-	suite.Require().NoError(results1[0].Error)
-	suite.Equal(0.9912488403014287, results1[0].Price.Price)
-	suite.Greater(results1[0].Price.Timestamp.Unix(), int64(0))
-
-	suite.client.On("Call", mock.Anything, ethereum.Call{
-		Address: ethereum.HexToAddress("0xDC24316b9AE028F1497c275EB9192a3Ea0f67022"),
-		Data:    ethereum.HexToBytes("0x5e0d443f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000"),
-	}).Return(ethereum.HexToBytes("0x0000000000000000000000000000000000000000000000000dc19f91822f3fe3"), nil)
-
 	results2 := suite.origin.Fetch([]Pair{pair.Inverse()})
+
 	suite.Require().NoError(results2[0].Error)
-	suite.Equal(0.9912488403014287, results2[0].Price.Price)
+	suite.Equal(0.97, results2[0].Price.Price)
 	suite.Greater(results2[0].Price.Timestamp.Unix(), int64(0))
+
+	suite.client.AssertNumberOfCalls(suite.T(), "CallBlocks", 1)
 }
 
 func (suite *CurveSuite) TestFailOnWrongPair() {

@@ -58,10 +58,8 @@ func (s *firstStringFromSliceAsFloat64) val() float64 {
 	return float64(*s)
 }
 
-//nolint:unused
 type stringAsUnixTimestamp time.Time
 
-//nolint:unused
 func (s *stringAsUnixTimestamp) UnmarshalJSON(bytes []byte) error {
 	var ss string
 	if err := json.Unmarshal(bytes, &ss); err != nil {
@@ -75,15 +73,31 @@ func (s *stringAsUnixTimestamp) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-//nolint:unused
 func (s *stringAsUnixTimestamp) val() time.Time {
 	return time.Time(*s)
 }
 
-//nolint:unused
+type stringAsUnixTimestampMs time.Time
+
+func (s *stringAsUnixTimestampMs) UnmarshalJSON(bytes []byte) error {
+	var ss string
+	if err := json.Unmarshal(bytes, &ss); err != nil {
+		return err
+	}
+	i, err := strconv.ParseInt(ss, 10, 64)
+	if err != nil {
+		return err
+	}
+	*s = stringAsUnixTimestampMs(time.Unix(i/1000, 0))
+	return nil
+}
+
+func (s *stringAsUnixTimestampMs) val() time.Time {
+	return time.Time(*s)
+}
+
 type stringAsInt64 int64
 
-//nolint:unused
 func (s *stringAsInt64) UnmarshalJSON(bytes []byte) error {
 	var ss string
 	if err := json.Unmarshal(bytes, &ss); err != nil {
@@ -97,7 +111,6 @@ func (s *stringAsInt64) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-//nolint:unused
 func (s *stringAsInt64) val() int64 {
 	return int64(*s)
 }
