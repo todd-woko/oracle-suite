@@ -39,9 +39,6 @@ const retryInterval = 5 * time.Second // The delay between retry attempts.
 // teleportTopic0 is Keccak256("TeleportInitialized((bytes32,bytes32,bytes32,bytes32,uint128,uint80,uint48))")
 var teleportTopic0 = ethereum.HexToHash("0x61aedca97129bac4264ec6356bd1f66431e65ab80e2d07b7983647d72776f545")
 
-// wormholeTopic0 is Keccak256("WormholeInitialized((bytes32,bytes32,bytes32,bytes32,uint128,uint80,uint48))")
-var wormholeTopic0 = ethereum.HexToHash("0x46d7dfb96bf7f7e8bb35ab641ff4632753a1411e3c8b30bec93e045e22f576de")
-
 // Client is a Ethereum compatible client.
 type Client interface {
 	BlockNumber(ctx context.Context) (uint64, error)
@@ -142,7 +139,7 @@ func (tl *TeleportListener) fetchLogs(ctx context.Context) {
 	if rangeFrom == tl.lastBlock {
 		return // There is no new blocks to fetch.
 	}
-	for _, topic0 := range []common.Hash{teleportTopic0, wormholeTopic0} {
+	for _, topic0 := range []common.Hash{teleportTopic0} {
 		for _, delta := range tl.blocksDelta {
 			for _, address := range tl.addresses {
 				if ctx.Err() != nil {

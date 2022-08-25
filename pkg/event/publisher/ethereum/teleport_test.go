@@ -59,9 +59,6 @@ func Test_teleportListener(t *testing.T) {
 	cli.On("BlockNumber", ctx).Return(uint64(42), nil).Once()
 	cli.On("FilterLogs", ctx, mock.Anything).Return([]types.Log{}, nil).Once().Run(func(args mock.Arguments) {
 		fq := args.Get(1).(geth.FilterQuery)
-		if fq.Topics[0][0] != wormholeTopic0 {
-			return
-		}
 		assert.Equal(t, uint64(18), fq.FromBlock.Uint64())
 		assert.Equal(t, uint64(32), fq.ToBlock.Uint64())
 		assert.Equal(t, []common.Address{teleportTestAddress}, fq.Addresses)
@@ -72,9 +69,6 @@ func Test_teleportListener(t *testing.T) {
 	cli.On("BlockNumber", ctx).Return(uint64(52), nil).Once()
 	cli.On("FilterLogs", ctx, mock.Anything).Return(logs, nil).Once().Run(func(args mock.Arguments) {
 		fq := args.Get(1).(geth.FilterQuery)
-		if fq.Topics[0][0] != wormholeTopic0 {
-			return
-		}
 		assert.Equal(t, uint64(33), fq.FromBlock.Uint64())
 		assert.Equal(t, uint64(42), fq.ToBlock.Uint64())
 		assert.Equal(t, []common.Address{teleportTestAddress}, fq.Addresses)
