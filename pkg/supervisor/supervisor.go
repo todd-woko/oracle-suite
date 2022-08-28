@@ -49,7 +49,10 @@ type Supervisor struct {
 }
 
 // New returns a new instance of *Supervisor.
-func New(logger log.Logger) *Supervisor {
+func New(ctx context.Context, logger log.Logger) *Supervisor {
+	if ctx == nil {
+		logger.Panic("cannot start with empty context")
+	}
 	if logger == nil {
 		logger = null.New()
 	}

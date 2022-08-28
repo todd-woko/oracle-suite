@@ -69,7 +69,7 @@ func PrepareClientServices(
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf(`invalid format option: %w`, err)
 	}
-	sup := supervisor.New(log)
+	sup := supervisor.New(ctx, log)
 	if g, ok := gof.(supervisor.Service); ok {
 		sup.Watch(g)
 	}
@@ -103,7 +103,7 @@ func PrepareAgentServices(ctx context.Context, opts *options) (*supervisor.Super
 	if err != nil {
 		return nil, fmt.Errorf(`gofer config error: %w`, err)
 	}
-	sup := supervisor.New(log)
+	sup := supervisor.New(ctx, log)
 	sup.Watch(gof.(supervisor.Service), age, sysmon.New(time.Minute, log))
 	if l, ok := log.(supervisor.Service); ok {
 		sup.Watch(l)
