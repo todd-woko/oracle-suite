@@ -71,7 +71,7 @@ func (s *service) Started() bool {
 
 func TestSupervisor_CancelContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := New(ctx, nil)
+	s := New(nil)
 
 	s1 := &service{waitCh: make(chan error)}
 	s2 := &service{waitCh: make(chan error)}
@@ -103,7 +103,7 @@ func TestSupervisor_CancelContext(t *testing.T) {
 func TestSupervisor_FailToStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s := New(ctx, nil)
+	s := New(nil)
 
 	s1 := &service{waitCh: make(chan error)}
 	s2 := &service{waitCh: make(chan error)}
@@ -122,7 +122,7 @@ func TestSupervisor_FailToStart(t *testing.T) {
 func TestSupervisor_OneFail(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s := New(ctx, nil)
+	s := New(nil)
 
 	s1 := &service{waitCh: make(chan error)}
 	s2 := &service{waitCh: make(chan error)}
@@ -155,7 +155,7 @@ func TestSupervisor_OneFail(t *testing.T) {
 func TestSupervisor_MultipleErrors(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s := New(ctx, nil)
+	s := New(nil)
 
 	s1 := &service{waitCh: make(chan error)}
 	s2 := &service{waitCh: make(chan error)}
