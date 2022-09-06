@@ -62,9 +62,9 @@ type jsonPrice struct {
 	V       string `json:"v"`
 	R       string `json:"r"`
 	S       string `json:"s"`
-	StarkR  string `json:"stark_r"`
-	StarkS  string `json:"stark_s"`
-	StarkPK string `json:"stark_pk"`
+	StarkR  string `json:"stark_r,omitempty"`
+	StarkS  string `json:"stark_s,omitempty"`
+	StarkPK string `json:"stark_pk,omitempty"`
 }
 
 func (p *Price) SetFloat64Price(price float64) {
@@ -188,19 +188,21 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 		}
 	}
 
-	p.StarkR, err = decodeHexNumber(j.StarkR)
-	if err != nil {
-		return errUnmarshalling("unable to decode StarkR param", err)
-	}
+	if len(j.StarkR) > 0 && len(j.StarkS) > 0 && len(j.StarkPK) > 0 {
+		p.StarkR, err = decodeHexNumber(j.StarkR)
+		if err != nil {
+			return errUnmarshalling("unable to decode StarkR param", err)
+		}
 
-	p.StarkS, err = decodeHexNumber(j.StarkS)
-	if err != nil {
-		return errUnmarshalling("unable to decode StarkS param", err)
-	}
+		p.StarkS, err = decodeHexNumber(j.StarkS)
+		if err != nil {
+			return errUnmarshalling("unable to decode StarkS param", err)
+		}
 
-	p.StarkPK, err = decodeHexNumber(j.StarkPK)
-	if err != nil {
-		return errUnmarshalling("unable to decode StarkPK param", err)
+		p.StarkPK, err = decodeHexNumber(j.StarkPK)
+		if err != nil {
+			return errUnmarshalling("unable to decode StarkPK param", err)
+		}
 	}
 
 	return nil
