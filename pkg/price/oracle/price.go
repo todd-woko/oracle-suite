@@ -188,21 +188,19 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 		}
 	}
 
-	if len(j.StarkR) > 0 && len(j.StarkS) > 0 && len(j.StarkPK) > 0 {
-		p.StarkR, err = decodeHexNumber(j.StarkR)
-		if err != nil {
-			return errUnmarshalling("unable to decode StarkR param", err)
-		}
+	p.StarkR, err = decodeHexNumber(j.StarkR)
+	if err != nil {
+		return errUnmarshalling("unable to decode StarkR param", err)
+	}
 
-		p.StarkS, err = decodeHexNumber(j.StarkS)
-		if err != nil {
-			return errUnmarshalling("unable to decode StarkS param", err)
-		}
+	p.StarkS, err = decodeHexNumber(j.StarkS)
+	if err != nil {
+		return errUnmarshalling("unable to decode StarkS param", err)
+	}
 
-		p.StarkPK, err = decodeHexNumber(j.StarkPK)
-		if err != nil {
-			return errUnmarshalling("unable to decode StarkPK param", err)
-		}
+	p.StarkPK, err = decodeHexNumber(j.StarkPK)
+	if err != nil {
+		return errUnmarshalling("unable to decode StarkPK param", err)
 	}
 
 	return nil
