@@ -145,3 +145,44 @@ func TestPrice_Marshall(t *testing.T) {
 	assert.Equal(t, p.StarkS, p2.StarkS)
 	assert.Equal(t, p.StarkPK, p2.StarkPK)
 }
+
+func TestPrice_Marshall_WithoutStarknet(t *testing.T) {
+	p := &Price{Wat: "AAABBB"}
+	p.Age = time.Unix(1605371361, 0)
+	p.SetFloat64Price(42)
+	p.V = 0xAA
+	p.R = [32]byte{0x01}
+	p.S = [32]byte{0x02}
+
+	// Marshall to JSON:
+	j, err := p.MarshalJSON()
+	assert.NoError(t, err)
+	assert.JSONEq(t, `
+		{
+		   "wat":"AAABBB",
+		   "val":"42000000000000000000",
+		   "age":1605371361,
+		   "v":"aa",
+		   "r":"0100000000000000000000000000000000000000000000000000000000000000",
+		   "s":"0200000000000000000000000000000000000000000000000000000000000000",
+		   "stark_r":"0x0",
+		   "stark_s":"0x0",
+		   "stark_pk":"0x0"
+		}`,
+		string(j),
+	)
+
+	// Unmarshall from JSON:
+	var p2 Price
+	err = p2.UnmarshalJSON(j)
+	assert.NoError(t, err)
+	assert.Equal(t, p.Wat, p2.Wat)
+	assert.Equal(t, p.Age, p2.Age)
+	assert.Equal(t, p.Val, p2.Val)
+	assert.Equal(t, p.V, p2.V)
+	assert.Equal(t, p.R, p2.R)
+	assert.Equal(t, p.S, p2.S)
+	assert.Len(t, p2.StarkR, 0)
+	assert.Len(t, p2.StarkS, 0)
+	assert.Len(t, p2.StarkPK, 0)
+}

@@ -209,7 +209,11 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 }
 
 func decodeHexNumber(s string) ([]byte, error) {
-	n, ok := (&big.Int{}).SetString(strings.TrimPrefix(s, "0x"), 16)
+	s = strings.TrimPrefix(s, "0x")
+	if s == "0" {
+		return []byte{}, nil
+	}
+	n, ok := (&big.Int{}).SetString(s, 16)
 	if !ok {
 		return nil, errors.New("unable to parse hex number")
 	}
@@ -217,6 +221,9 @@ func decodeHexNumber(s string) ([]byte, error) {
 }
 
 func encodeHexNumber(b []byte) string {
+	if len(b) == 0 {
+		return "0x0"
+	}
 	n := (&big.Int{}).SetBytes(b)
 	return "0x" + n.Text(16)
 }
