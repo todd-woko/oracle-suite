@@ -208,8 +208,8 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 
 func decodeHexNumber(s string) ([]byte, error) {
 	s = strings.TrimPrefix(s, "0x")
-	if s == "0" {
-		return []byte{}, nil
+	if s == "" || s == "0" {
+		return []byte{}, nil // fast path
 	}
 	n, ok := (&big.Int{}).SetString(s, 16)
 	if !ok {
