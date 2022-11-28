@@ -190,6 +190,7 @@ To do so, use the following syntax: `${ENV_VAR-default}`.
 ```
 Request:
 GET http://127.0.0.1:8080/?type=teleport_evm&index=0x17b4079be1518b2df6e04f9206ac2e2a8822247760627f822aff87dfcad63150
+GET http://127.0.0.1:8080/?type=teleport_starknet&index=0x6c0b516af5a269c0b1b3a9d9ee44f78345fff515c3d3816253f579cb0690a80
 ```
 
 ```
