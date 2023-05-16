@@ -63,6 +63,9 @@ func TestEventStore(t *testing.T) {
 		require.NoError(t, <-tra.Wait())
 	}()
 
+	// Wait for services to start,
+	time.Sleep(100 * time.Millisecond)
+
 	event := &messages.Event{
 		Type:        "test",
 		ID:          []byte("test"),
