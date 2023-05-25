@@ -28,6 +28,8 @@ variables {
     "0xaC8519b3495d8A3E3E44c041521cF7aC3f8F63B3",
     "0xd72BA9402E9f3Ff01959D6c841DDD13615FFff42"
   ])
+
+  # List of median contracts that will be updated by the Relay.
   median_contracts = {
     "BTC/USD" : {
       "msgExpiration" : 1800,
@@ -105,6 +107,12 @@ variables {
 }
 
 ethereum {
+  # Labels for generating random ethereum keys anew on every app boot.
+  # The labels are used to reference ethereum keys in other sections.
+  # (optional)
+  #
+  # If you want to use a specific key, you can set the CFG_ETH_FROM
+  # environment variable along with CFG_ETH_KEYS and CFG_ETH_PASS.
   rand_keys = try(env.CFG_ETH_FROM, "") == "" ? ["default"] : []
 
   dynamic "key" {
@@ -143,19 +151,22 @@ ethereum {
 }
 
 transport {
-  # LibP2P transport configuration. Always enabled.
-  libp2p {
-    feeds           = var.feeds
-    priv_key_seed   = try(env.CFG_LIBP2P_PK_SEED, "")
-    listen_addrs    = try(split(",", env.CFG_LIBP2P_LISTEN_ADDRS), ["/ip4/0.0.0.0/tcp/8000"])
-    bootstrap_addrs = try(env.CFG_LIBP2P_BOOTSTRAP_ADDRS == "" ? [] : split(",", env.CFG_LIBP2P_BOOTSTRAP_ADDRS), [
-      "/dns/spire-bootstrap1.makerops.services/tcp/8000/p2p/12D3KooWRfYU5FaY9SmJcRD5Ku7c1XMBRqV6oM4nsnGQ1QRakSJi",
-      "/dns/spire-bootstrap2.makerops.services/tcp/8000/p2p/12D3KooWBGqjW4LuHUoYZUhbWW1PnDVRUvUEpc4qgWE3Yg9z1MoR"
-    ])
-    direct_peers_addrs = try(env.CFG_LIBP2P_DIRECT_PEERS_ADDRS == "" ? [] : split(",", env.CFG_LIBP2P_DIRECT_PEERS_ADDRS), [])
-    blocked_addrs      = try(env.CFG_LIBP2P_BLOCKED_ADDRS == "" ? [] : split(",", env.CFG_LIBP2P_BLOCKED_ADDRS), [])
-    disable_discovery  = tobool(try(env.CFG_LIBP2P_DISABLE_DISCOVERY, false))
-    ethereum_key       = try(env.CFG_ETH_FROM, "") == "" ? "" : "default"
+  # LibP2P transport configuration. Enabled if CFG_LIBP2P is not set or if it is set to anything evaluated to `false`.
+  dynamic "libp2p" {
+    for_each = tobool(try(env.CFG_LIBP2P_ENABLE, "1")) ? [1] : []
+    content {
+      feeds           = var.feeds
+      priv_key_seed   = try(env.CFG_LIBP2P_PK_SEED, "")
+      listen_addrs    = try(split(",", env.CFG_LIBP2P_LISTEN_ADDRS), ["/ip4/0.0.0.0/tcp/8000"])
+      bootstrap_addrs = try(env.CFG_LIBP2P_BOOTSTRAP_ADDRS == "" ? [] : split(",", env.CFG_LIBP2P_BOOTSTRAP_ADDRS), [
+        "/dns/spire-bootstrap1.makerops.services/tcp/8000/p2p/12D3KooWRfYU5FaY9SmJcRD5Ku7c1XMBRqV6oM4nsnGQ1QRakSJi",
+        "/dns/spire-bootstrap2.makerops.services/tcp/8000/p2p/12D3KooWBGqjW4LuHUoYZUhbWW1PnDVRUvUEpc4qgWE3Yg9z1MoR"
+      ])
+      direct_peers_addrs = try(env.CFG_LIBP2P_DIRECT_PEERS_ADDRS == "" ? [] : split(",", env.CFG_LIBP2P_DIRECT_PEERS_ADDRS), [])
+      blocked_addrs      = try(env.CFG_LIBP2P_BLOCKED_ADDRS == "" ? [] : split(",", env.CFG_LIBP2P_BLOCKED_ADDRS), [])
+      disable_discovery  = tobool(try(env.CFG_LIBP2P_DISABLE_DISCOVERY, false))
+      ethereum_key       = "default"
+    }
   }
 
   # WebAPI transport configuration. Enabled if CFG_WEBAPI_LISTEN_ADDR is set to a listen address.
@@ -163,9 +174,9 @@ transport {
     for_each = try(env.CFG_WEBAPI_LISTEN_ADDR, "") == "" ? [] : [1]
     content {
       feeds             = var.feeds
-      listen_addr       = try(env.CFG_WEBAPI_LISTEN_ADDR, "0.0.0.0.8080")
+      listen_addr       = try(env.CFG_WEBAPI_LISTEN_ADDR, "0.0.0.0:8080")
       socks5_proxy_addr = try(env.CFG_WEBAPI_SOCKS5_PROXY_ADDR, "127.0.0.1:9050")
-      ethereum_key      = try(env.CFG_ETH_FROM, "") == "" ? "" : "default"
+      ethereum_key      = "default"
 
       # Ethereum based address book. Enabled if CFG_WEBAPI_ETH_ADDR_BOOK is set to a contract address.
       dynamic "ethereum_address_book" {
@@ -176,18 +187,18 @@ transport {
         }
       }
 
-      # Static address book. Enabled if CFG_WEBAPI_STATIC_ADDR_BOOK is set to a comma separated list of addresses.
-      dynamic "static_address_book" {
-        for_each = try(env.CFG_WEBAPI_STATIC_ADDR_BOOK, "") == "" ? [] : [1]
-        content {
-          addresses = try(split(",", env.CFG_WEBAPI_STATIC_ADDR_BOOK), "")
-        }
+      static_address_book {
+        addresses = split(",", try(env.CFG_WEBAPI_STATIC_ADDR_BOOK, "bw7blxrzq526zdxvrvsknas6evzkd57tfwru7rgzh2eot3kcqk4cn7yd.onion:8888"))
       }
     }
   }
 }
 
 spire {
+  # Ethereum key to use for signing messages. The key must be present in the `ethereum` section.
+  # (optional) if not set, the first key in the `ethereum` section is used.
+  ethereum_key = "default"
+
   rpc_listen_addr = try(env.CFG_SPIRE_RPC_ADDR, "0.0.0.0:9100")
   rpc_agent_addr  = try(env.CFG_SPIRE_RPC_ADDR, "127.0.0.1:9100")
 
@@ -210,8 +221,9 @@ spire {
 
 ghost {
   ethereum_key = "default"
-  interval     = try(tonumber(env.CFG_GHOST_INTERVAL, 60))
-  pairs        = try(env.CFG_GHOST_PAIRS == "" ? [] : split(",", env.CFG_GHOST_PAIRS), [
+
+  interval = try(tonumber(env.CFG_GHOST_INTERVAL, 60))
+  pairs    = try(env.CFG_GHOST_PAIRS == "" ? [] : split(",", env.CFG_GHOST_PAIRS), [
     "BTC/USD",
     "ETH/BTC",
     "ETH/USD",
