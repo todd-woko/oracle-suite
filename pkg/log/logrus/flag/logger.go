@@ -56,7 +56,7 @@ func (logger *LoggerFlag) Logger() log.Logger {
 	return logrus2.New(l)
 }
 
-const defaultVerbosity = logrus.WarnLevel
+const defaultVerbosity = logrus.InfoLevel
 
 type verbosityFlag struct {
 	wasSet    bool
