@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -75,7 +75,7 @@ func feederValidator(feeders []types.Address, logger log.Logger) internal.Option
 				logger.
 					WithField("peerID", psMsg.GetFrom().String()).
 					WithField("from", feedAddr).
-					Warn("The message has been ignored, the feeder is not allowed to send messages")
+					Debug("Message ignored, feed is not allowed to send messages")
 				return pubsub.ValidationIgnore
 			}
 			return pubsub.ValidationAccept

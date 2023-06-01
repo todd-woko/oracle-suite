@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -46,7 +46,7 @@ func PeerLogger() Options {
 						"protocolVersion": pv,
 						"protocols":       pp,
 					}).
-					Info("Connected to a peer")
+					Debug("Connected to a peer")
 			case pubsub.PeerLeave:
 				n.tsLog.get().
 					WithFields(log.Fields{
@@ -54,7 +54,7 @@ func PeerLogger() Options {
 						"topic":       topic,
 						"listenAddrs": addrs,
 					}).
-					Info("Disconnected from a peer")
+					Debug("Disconnected from a peer")
 			}
 		}))
 		return nil
