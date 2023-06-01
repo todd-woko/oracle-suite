@@ -131,18 +131,19 @@ func priceValidator(logger log.Logger, recoverer crypto.Recoverer) internal.Opti
 					WithField("wat", wat).
 					WithField("age", age).
 					WithField("val", val).
-					Warn("The price message has been rejected, invalid signature")
+					Warn("Price message rejected, invalid signature")
 				return pubsub.ValidationReject
 			}
 			// The libp2p message should be created by the same person who signs the price message:
 			if ethkey.AddressToPeerID(*priceFrom) != psMsg.GetFrom() {
 				logger.
 					WithField("peerID", psMsg.GetFrom().String()).
+					WithField("peerAddr", ethkey.PeerIDToAddress(psMsg.GetFrom()).String()).
 					WithField("from", priceFrom.String()).
 					WithField("wat", wat).
 					WithField("age", age).
 					WithField("val", val).
-					Warn("The price message has been rejected, the message and price signatures do not match")
+					Warn("Price message rejected, the message and price signatures do not match")
 				return pubsub.ValidationReject
 			}
 			// Check when message was created, ignore if older than 5 min, reject if older than 10 min:
@@ -153,7 +154,7 @@ func priceValidator(logger log.Logger, recoverer crypto.Recoverer) internal.Opti
 					WithField("wat", wat).
 					WithField("age", age).
 					WithField("val", val).
-					Warn("The price message has been rejected, the message is older than 5 min")
+					Warn("Price message rejected, the message is older than 5 min")
 				if time.Since(priceMsg.Price.Age) > 10*time.Minute {
 					return pubsub.ValidationReject
 				}
