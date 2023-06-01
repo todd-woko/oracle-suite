@@ -75,7 +75,7 @@ func feederValidator(feeders []types.Address, logger log.Logger) internal.Option
 				logger.
 					WithField("peerID", psMsg.GetFrom().String()).
 					WithField("from", feedAddr).
-					Debug("Message ignored, feed is not allowed to send messages")
+					Warn("Message ignored, feed is not allowed to send messages")
 				return pubsub.ValidationIgnore
 			}
 			return pubsub.ValidationAccept
@@ -93,12 +93,14 @@ func eventValidator(logger log.Logger) internal.Options {
 				return pubsub.ValidationAccept
 			}
 			feedAddr := ethkey.PeerIDToAddress(psMsg.GetFrom())
+			typ := eventMsg.Type
 			// Check when message was created, ignore if older than 5 min, reject if older than 10 min:
 			if time.Since(eventMsg.MessageDate) > 5*time.Minute {
 				logger.
 					WithField("peerID", psMsg.GetFrom().String()).
 					WithField("from", feedAddr.String()).
-					Warn("The event message has been rejected, the message is older than 5 min")
+					WithField("type", typ).
+					Warn("Event message rejected, the message is older than 5 min")
 				if time.Since(eventMsg.MessageDate) > 10*time.Minute {
 					return pubsub.ValidationReject
 				}
@@ -122,6 +124,7 @@ func priceValidator(logger log.Logger, recoverer crypto.Recoverer) internal.Opti
 			// Check is a message signature is valid and extract author's address:
 			priceFrom, err := priceMsg.Price.From(recoverer)
 			wat := priceMsg.Price.Wat
+			ver := priceMsg.Version
 			age := priceMsg.Price.Age.UTC().Format(time.RFC3339)
 			val := priceMsg.Price.Val.String()
 			if err != nil {
@@ -131,6 +134,7 @@ func priceValidator(logger log.Logger, recoverer crypto.Recoverer) internal.Opti
 					WithField("wat", wat).
 					WithField("age", age).
 					WithField("val", val).
+					WithField("version", ver).
 					Warn("Price message rejected, invalid signature")
 				return pubsub.ValidationReject
 			}
@@ -143,6 +147,7 @@ func priceValidator(logger log.Logger, recoverer crypto.Recoverer) internal.Opti
 					WithField("wat", wat).
 					WithField("age", age).
 					WithField("val", val).
+					WithField("version", ver).
 					Warn("Price message rejected, the message and price signatures do not match")
 				return pubsub.ValidationReject
 			}
@@ -154,6 +159,7 @@ func priceValidator(logger log.Logger, recoverer crypto.Recoverer) internal.Opti
 					WithField("wat", wat).
 					WithField("age", age).
 					WithField("val", val).
+					WithField("version", ver).
 					Warn("Price message rejected, the message is older than 5 min")
 				if time.Since(priceMsg.Price.Age) > 10*time.Minute {
 					return pubsub.ValidationReject

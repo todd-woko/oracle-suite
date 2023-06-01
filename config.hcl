@@ -294,7 +294,7 @@ transport {
   dynamic "libp2p" {
     for_each = tobool(try(env.CFG_LIBP2P_ENABLE, "1")) ? [1] : []
     content {
-      feeds           = try(var.feed_sets[try(env.CFG_FEEDS, "prod")], split(",", env.CFG_FEEDS))
+      feeds           = try(env.CFG_FEEDS, "")=="*" ? concat(var.feed_sets["prod"], var.feed_sets["stage"]) : try(var.feed_sets[try(env.CFG_FEEDS, "prod")], split(",", try(env.CFG_FEEDS, "")))
       priv_key_seed   = try(env.CFG_LIBP2P_PK_SEED, "")
       listen_addrs    = try(split(",", env.CFG_LIBP2P_LISTEN_ADDRS), ["/ip4/0.0.0.0/tcp/8000"])
       bootstrap_addrs = try(env.CFG_LIBP2P_BOOTSTRAP_ADDRS == "" ? [] : split(",", env.CFG_LIBP2P_BOOTSTRAP_ADDRS), [
@@ -312,7 +312,7 @@ transport {
   dynamic "webapi" {
     for_each = try(env.CFG_WEBAPI_LISTEN_ADDR, "") == "" ? [] : [1]
     content {
-      feeds             = try(var.feed_sets[try(env.CFG_FEEDS, "prod")], split(",", env.CFG_FEEDS))
+      feeds             = try(env.CFG_FEEDS, "")=="*" ? concat(var.feed_sets["prod"], var.feed_sets["stage"]) : try(var.feed_sets[try(env.CFG_FEEDS, "prod")], split(",", try(env.CFG_FEEDS, "")))
       listen_addr       = try(env.CFG_WEBAPI_LISTEN_ADDR, "0.0.0.0:8080")
       socks5_proxy_addr = try(env.CFG_WEBAPI_SOCKS5_PROXY_ADDR, "127.0.0.1:9050")
       ethereum_key      = "default"

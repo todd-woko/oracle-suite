@@ -209,6 +209,7 @@ func (p *PriceStore) handlePriceMessage(msg transport.ReceivedMessage) {
 		p.log.
 			WithError(err).
 			WithFields(price.Price.Fields(p.recover)).
+			WithField("version", price.Version).
 			Warn("Price rejected")
 	} else {
 		p.log.
