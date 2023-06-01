@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -102,10 +102,10 @@ func (p *Price) Fields(r crypto.Recoverer) log.Fields {
 		"wat":  p.Wat,
 		"age":  p.Age.UTC().Format(time.RFC3339),
 		"val":  p.Val.String(),
-		"hash": hex.EncodeToString(p.hash().Bytes()),
-		"V":    hex.EncodeToString(p.Sig.V.Bytes()),
-		"R":    hex.EncodeToString(p.Sig.R.Bytes()),
-		"S":    hex.EncodeToString(p.Sig.S.Bytes()),
+		// "hash": hex.EncodeToString(p.hash().Bytes()),
+		// "V":    hex.EncodeToString(p.Sig.V.Bytes()),
+		// "R":    hex.EncodeToString(p.Sig.R.Bytes()),
+		// "S":    hex.EncodeToString(p.Sig.S.Bytes()),
 	}
 }
 

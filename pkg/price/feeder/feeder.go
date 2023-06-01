@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -109,7 +109,7 @@ func (g *Feeder) Start(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("context must not be nil")
 	}
-	g.log.Infof("Starting")
+	g.log.Debug("Starting")
 	g.ctx = ctx
 	g.interval.Start(g.ctx)
 	go g.broadcasterRoutine()
@@ -183,7 +183,7 @@ func (g *Feeder) broadcasterRoutine() {
 
 func (g *Feeder) contextCancelHandler() {
 	defer func() { close(g.waitCh) }()
-	defer g.log.Info("Stopped")
+	defer g.log.Debug("Stopped")
 	<-g.ctx.Done()
 }
 

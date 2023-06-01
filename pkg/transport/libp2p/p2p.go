@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -40,6 +40,7 @@ import (
 )
 
 const LoggerTag = "P2P"
+const TransportName = "libp2p"
 
 // Mode describes operating mode of the node.
 type Mode int
@@ -48,7 +49,7 @@ const (
 	// ClientMode operates the node as client. ClientMode can publish and read messages
 	// and provides peer discovery service for other nodes.
 	ClientMode Mode = iota
-	// BootstrapMode operates the node as a bootstrap node. BootstrapMode node provide
+	// BootstrapMode operates the node as a bootstrap node. BootstrapMode node provides
 	// only peer discovery service for other nodes.
 	BootstrapMode
 )
@@ -329,6 +330,7 @@ func (p *P2P) messagesLoop(topic string, sub *internal.Subscription) {
 				Message: msg,
 				Author:  ethkey.PeerIDToAddress(nodeMsg.GetFrom()).Bytes(),
 				Data:    nodeMsg,
+				Meta:    transport.Meta{Transport: TransportName, Channel: topic},
 			}
 		}
 	}

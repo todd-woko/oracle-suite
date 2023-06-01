@@ -121,7 +121,7 @@ func (p *PriceStore) Start(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("context must not be nil")
 	}
-	p.log.Info("Starting")
+	p.log.Debug("Starting")
 	p.ctx = ctx
 	go p.priceCollectorRoutine()
 	go p.contextCancelHandler()
@@ -199,7 +199,9 @@ func (p *PriceStore) handlePriceMessage(msg transport.ReceivedMessage) {
 	}
 	price, ok := msg.Message.(*messages.Price)
 	if !ok {
-		p.log.Error("Unexpected value returned from the transport layer")
+		p.log.
+			WithFields(msg.Fields()).
+			Error("Unexpected value returned from the transport layer")
 		return
 	}
 	err := p.collectPrice(price)
@@ -207,18 +209,19 @@ func (p *PriceStore) handlePriceMessage(msg transport.ReceivedMessage) {
 		p.log.
 			WithError(err).
 			WithFields(price.Price.Fields(p.recover)).
-			Warn("Received invalid price")
+			Warn("Price rejected")
 	} else {
 		p.log.
 			WithFields(price.Price.Fields(p.recover)).
 			WithField("version", price.Version).
-			Info("Price received")
+			WithFields(msg.Fields()).
+			Info("Price collected")
 	}
 }
 
 // contextCancelHandler handles context cancellation.
 func (p *PriceStore) contextCancelHandler() {
 	defer func() { close(p.waitCh) }()
-	defer p.log.Info("Stopped")
+	defer p.log.Debug("Stopped")
 	<-p.ctx.Done()
 }

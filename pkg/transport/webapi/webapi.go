@@ -1,3 +1,18 @@
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU Affero General Public License as
+//  published by the Free Software Foundation, either version 3 of the
+//  License, or (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU Affero General Public License for more details.
+//
+//  You should have received a copy of the GNU Affero General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 package webapi
 
 import (
@@ -35,7 +50,8 @@ import (
 )
 
 const (
-	LoggerTag = "WEB_API"
+	LoggerTag     = "WEB_API"
+	TransportName = "webapi"
 
 	// consumePath is the URL path for the consume endpoint.
 	consumePath = "/consume"
@@ -273,7 +289,7 @@ func (w *WebAPI) Start(ctx context.Context) error {
 		return errors.New("context must not be nil")
 	}
 	w.ctx = ctx
-	w.log.Info("Starting")
+	w.log.Debug("Starting")
 	for topic := range w.topics {
 		w.msgCh[topic] = make(chan transport.ReceivedMessage, messageChanSize)
 		w.msgChFO[topic] = chanutil.NewFanOut(w.msgCh[topic])
@@ -551,6 +567,7 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 			w.msgCh[topic] <- transport.ReceivedMessage{
 				Message: msg,
 				Author:  requestAuthor.Bytes(),
+				Meta:    transport.Meta{Transport: TransportName},
 			}
 		}
 	}
@@ -579,7 +596,7 @@ func (w *WebAPI) flushRoutine(ctx context.Context) {
 // contextCancelHandler handles context cancellation.
 func (w *WebAPI) contextCancelHandler() {
 	defer func() { close(w.waitCh) }()
-	defer w.log.Info("Stopped")
+	defer w.log.Debug("Stopped")
 	<-w.ctx.Done()
 	w.mu.Lock()
 	defer w.mu.Unlock()

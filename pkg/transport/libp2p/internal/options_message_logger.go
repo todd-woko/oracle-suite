@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -40,10 +40,12 @@ func (m *messageLoggerHandler) Published(topic string, msg []byte) {
 	if m.n.tsLog.get().Level() < log.Debug {
 		return
 	}
+	f, mm := dumpMessage(msg)
 	m.n.tsLog.get().
 		WithFields(log.Fields{
 			"topic":   topic,
-			"message": dumpMessage(msg),
+			"message": mm,
+			"format":  f,
 		}).
 		Debug("Published a new message")
 }
@@ -52,22 +54,24 @@ func (m *messageLoggerHandler) Received(topic string, msg *pubsub.Message, _ pub
 	if m.n.tsLog.get().Level() < log.Debug {
 		return
 	}
+	f, mm := dumpMessage(msg.Data)
 	m.n.tsLog.get().
 		WithFields(log.Fields{
 			"topic":              topic,
-			"message":            dumpMessage(msg.Data),
+			"message":            mm,
+			"format":             f,
 			"peerID":             msg.GetFrom().String(),
 			"receivedFromPeerID": msg.ReceivedFrom.String(),
 		}).
 		Debug("Received a new message")
 }
 
-func dumpMessage(s []byte) string {
+func dumpMessage(s []byte) (string, string) {
 	// TODO: Remove the text format after updating all messages to protobuf format.
 	if isPrintable(s) {
-		return "TEXT: " + string(s)
+		return "TEXT", string(s)
 	}
-	return "BINARY: " + hex.EncodeToString(s)
+	return "BINARY", hex.EncodeToString(s)
 }
 
 func isPrintable(s []byte) bool {

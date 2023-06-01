@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -63,7 +63,7 @@ func (a *AsyncProvider) Start(ctx context.Context) error {
 	if ctx == nil {
 		return errors.New("context must not be nil")
 	}
-	a.log.Infof("Starting")
+	a.log.Debug("Starting")
 	a.ctx = ctx
 
 	// To ensure that broken origins do not affect the fetching of prices from
@@ -120,7 +120,7 @@ func (a *AsyncProvider) Wait() <-chan error {
 
 func (a *AsyncProvider) contextCancelHandler() {
 	defer func() { close(a.waitCh) }()
-	defer a.log.Info("Stopped")
+	defer a.log.Debug("Stopped")
 	<-a.ctx.Done()
 }
 
