@@ -204,6 +204,17 @@ func New(cfg Config) (*P2P, error) {
 		opts = append(opts, internal.PeerPrivKey(cfg.PeerPrivKey))
 	}
 
+	for _, addr := range cfg.AuthorAllowlist {
+		logger.
+			WithField("addr", addr.String()).
+			Info("Feed")
+	}
+	for _, addr := range cfg.BootstrapAddrs {
+		logger.
+			WithField("addr", addr).
+			Info("Bootstrap")
+	}
+
 	switch cfg.Mode {
 	case ClientMode:
 		priceTopicScoreParams, err := calculatePriceTopicScoreParams(cfg)
@@ -330,7 +341,7 @@ func (p *P2P) messagesLoop(topic string, sub *internal.Subscription) {
 				Message: msg,
 				Author:  ethkey.PeerIDToAddress(nodeMsg.GetFrom()).Bytes(),
 				Data:    nodeMsg,
-				Meta:    transport.Meta{Transport: TransportName, Channel: topic},
+				Meta:    transport.Meta{Transport: TransportName, Topic: topic},
 			}
 		}
 	}

@@ -65,11 +65,11 @@ type Transport interface {
 
 type Meta struct {
 	Transport string
-	Channel   string
+	Topic     string
 }
 
 func (p *ReceivedMessage) Fields() log.Fields {
 	return log.Fields{
-		"transport": p.Meta.Transport + "://" + p.Meta.Channel,
+		"channel": p.Meta.Transport + ":" + p.Meta.Topic,
 	}
 }

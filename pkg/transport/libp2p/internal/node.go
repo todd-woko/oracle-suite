@@ -138,9 +138,11 @@ func (n *Node) Start(ctx context.Context) error {
 
 	n.nodeEventHandler.Handle(sets.NodeHostStartedEvent{})
 
-	n.tsLog.get().
-		WithField("listenAddrs", n.listenAddrStrs()).
-		Info("Listening")
+	for _, addr := range n.listenAddrStrs() {
+		n.tsLog.get().
+			WithField("addr", addr).
+			Info("Listening")
+	}
 
 	if !n.disablePubSub {
 		n.pubSub, err = pubsub.NewGossipSub(n.ctx, n.host, n.pubsubOpts...)
