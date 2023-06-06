@@ -28,8 +28,8 @@ jobs:
             image: ghcr.io/chronicleprotocol/lair
           - dockerfile: ./Dockerfile-leeloo
             image: ghcr.io/chronicleprotocol/leeloo
-          - dockerfile: ./Dockerfile-rpc-splitter
-            image: ghcr.io/chronicleprotocol/rpc-splitter
+#          - dockerfile: ./Dockerfile-rpc-splitter
+#            image: ghcr.io/chronicleprotocol/rpc-splitter
           - dockerfile: ./Dockerfile-spectre
             image: ghcr.io/chronicleprotocol/spectre
           - dockerfile: ./Dockerfile-spire
