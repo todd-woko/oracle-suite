@@ -78,7 +78,7 @@ func Monitor() Options {
 		log := func() {
 			n.tsLog.get().
 				WithField("count", len(n.host.Network().Peers())).
-				Debug("Peers")
+				Info("Peers")
 		}
 		notifeeCh := make(chan struct{})
 		notifee := &monitorNotifee{notifeeCh: notifeeCh}

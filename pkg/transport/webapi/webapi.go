@@ -442,28 +442,28 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 
 	// Only POST requests are allowed.
 	if req.Method != http.MethodPost {
-		w.log.WithFields(fields).Debug("Invalid request method")
+		w.log.WithFields(fields).Warn("Invalid request method")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Only requests to the /consume path are allowed.
 	if req.URL.Path != consumePath {
-		w.log.WithFields(fields).Debug("Invalid request path")
+		w.log.WithFields(fields).Warn("Invalid request path")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Only requests with the protobuf content type are allowed.
 	if req.Header.Get("Content-Type") != "application/x-protobuf" {
-		w.log.WithFields(fields).Debug("Invalid content type")
+		w.log.WithFields(fields).Warn("Invalid content type")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Only requests with the gzip content encoding are allowed.
 	if req.Header.Get("Content-Encoding") != "gzip" {
-		w.log.WithFields(fields).Debug("Invalid request encoding")
+		w.log.WithFields(fields).Warn("Invalid request encoding")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -471,7 +471,7 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 	// Verify the request URL signature.
 	requestAuthor, timestamp, err := verifyURL(req.URL.String(), w.recover)
 	if err != nil {
-		w.log.WithFields(fields).WithError(err).Debug("Invalid request signature")
+		w.log.WithFields(fields).WithError(err).Warn("Invalid request signature")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -480,7 +480,7 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 
 	// Verify if the feeder is allowed to send messages.
 	if !sliceutil.Contains(w.allowlist, *requestAuthor) {
-		w.log.WithFields(fields).Debug("Feeder not allowed to send messages")
+		w.log.WithFields(fields).Warn("Feed not allowed to send messages")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
