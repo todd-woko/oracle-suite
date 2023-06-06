@@ -455,15 +455,22 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	// Only requests with the protobuf content type are allowed.
-	if req.Header.Get("Content-Type") != "application/x-protobuf" {
-		w.log.WithFields(fields).Warn("Invalid content type")
+
+	if h := req.Header.Get("Content-Type"); h != "application/x-protobuf" {
+		w.log.
+			WithFields(fields).
+			WithField("content-type", h).
+			Warn("Invalid content type")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Only requests with the gzip content encoding are allowed.
-	if req.Header.Get("Content-Encoding") != "gzip" {
-		w.log.WithFields(fields).Warn("Invalid request encoding")
+	if h := req.Header.Get("Content-Encoding"); h != "gzip" {
+		w.log.
+			WithFields(fields).
+			WithField("content-encoding", h).
+			Warn("Invalid request encoding")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -475,12 +482,14 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	fields["feeder"] = requestAuthor
+	fields["author"] = requestAuthor
 	fields["timestamp"] = timestamp
 
-	// Verify if the feeder is allowed to send messages.
+	// Verify if the feed is allowed to send messages.
 	if !sliceutil.Contains(w.allowlist, *requestAuthor) {
-		w.log.WithFields(fields).Warn("Feed not allowed to send messages")
+		w.log.
+			WithFields(fields).
+			Warn("Feed not allowed to send messages")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -489,12 +498,14 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 	// [now - flushInterval - maxClockSkew, now + maxClockSkew].
 	currentTimestamp := time.Now()
 	if timestamp.After(currentTimestamp.Add(w.maxClockSkew)) {
-		w.log.WithFields(fields).Warn("Timestamp too far in the future")
+		w.log.
+			WithFields(fields).Warn("Timestamp too far in the future")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	if timestamp.Before(currentTimestamp.Add(-w.flushTicker.Duration() - w.maxClockSkew)) {
-		w.log.WithFields(fields).Warn("Timestamp too far in the past")
+		w.log.
+			WithFields(fields).Warn("Timestamp too far in the past")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -535,12 +546,18 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 	// author of the message and the request author can be different.
 	messagePackAuthor, err := verifyMessage(mp, w.recover)
 	if err != nil {
-		w.log.WithFields(fields).WithError(err).Warn("Invalid message pack signature")
+		w.log.
+			WithFields(fields).
+			WithError(err).
+			Warn("Invalid message pack signature")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	if *messagePackAuthor != *requestAuthor {
-		w.log.WithFields(fields).Warn("Message pack author does not match request author")
+		w.log.
+			WithFields(fields).
+			WithField("from", messagePackAuthor).
+			Warn("Message pack author does not match request author")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -555,14 +572,19 @@ func (w *WebAPI) consumeHandler(res http.ResponseWriter, req *http.Request) {
 			ref := reflect.TypeOf(typ).Elem()
 			msg := reflect.New(ref).Interface().(transport.Message)
 			if err := msg.UnmarshallBinary(bin); err != nil {
-				w.log.WithFields(fields).WithError(err).Warn("Unable to unmarshal message")
+				w.log.
+					WithFields(fields).
+					WithError(err).
+					Warn("Unable to unmarshal message")
 				continue
 			}
 			if _, ok := w.msgCh[topic]; !ok {
 				// PANIC!
 				// This should never happen because the keys of w.msgCh are
 				// the same as the keys of w.topics.
-				w.log.WithField("topic", topic).Panic("Topic channel is not initialized")
+				w.log.
+					WithField("topic", topic).
+					Panic("Channel not initialized")
 			}
 			w.msgCh[topic] <- transport.ReceivedMessage{
 				Message: msg,
@@ -606,7 +628,7 @@ func (w *WebAPI) contextCancelHandler() {
 }
 
 // signURL signs URLs using the given signer. It is used to quickly verify that a
-// request comes from a specific feeder.
+// request comes from a specific feed.
 //
 // The URL is signed by appending the following query parameters:
 //

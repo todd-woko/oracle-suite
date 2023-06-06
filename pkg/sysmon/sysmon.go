@@ -85,7 +85,9 @@ func (s *Sysmon) Start(ctx context.Context) error {
 			}
 		}
 	}
-	s.log.WithFields(fields).Debug("Build info")
+	s.log.
+		WithFields(fields).
+		Debug("Build info")
 	s.ctx = ctx
 	go s.monitorRoutine()
 	go s.contextCancelHandler()
