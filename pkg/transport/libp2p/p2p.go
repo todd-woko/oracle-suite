@@ -238,7 +238,7 @@ func New(cfg Config) (*P2P, error) {
 				return nil
 			}),
 			messageValidator(cfg.Topics, logger), // must be registered before any other validator
-			feederValidator(cfg.AuthorAllowlist, logger),
+			feedValidator(cfg.AuthorAllowlist, logger),
 			eventValidator(logger),
 			priceValidator(logger, cryptoETH.ECRecoverer),
 		)

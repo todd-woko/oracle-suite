@@ -60,21 +60,14 @@ func messageValidator(topics map[string]transport.Message, logger log.Logger) in
 	}
 }
 
-func feederValidator(feeders []types.Address, logger log.Logger) internal.Options {
+func feedValidator(feeders []types.Address, logger log.Logger) internal.Options {
 	return func(n *internal.Node) error {
 		n.AddValidator(func(ctx context.Context, topic string, id peer.ID, psMsg *pubsub.Message) pubsub.ValidationResult {
-			feedAddr := ethkey.PeerIDToAddress(psMsg.GetFrom())
-			feedAllowed := false
-			for _, addr := range feeders {
-				if addr == feedAddr {
-					feedAllowed = true
-					break
-				}
-			}
-			if !feedAllowed {
+			from := ethkey.PeerIDToAddress(psMsg.GetFrom())
+			if !feedAllowed(from, feeders) {
 				logger.
 					WithField("peerID", psMsg.GetFrom().String()).
-					WithField("from", feedAddr).
+					WithField("from", from).
 					Warn("Message ignored, feed is not allowed to send messages")
 				return pubsub.ValidationIgnore
 			}
@@ -82,6 +75,15 @@ func feederValidator(feeders []types.Address, logger log.Logger) internal.Option
 		})
 		return nil
 	}
+}
+
+func feedAllowed(addr types.Address, feeders []types.Address) bool {
+	for _, f := range feeders {
+		if f == addr {
+			return true
+		}
+	}
+	return false
 }
 
 // eventValidator adds a validator for event messages.
@@ -93,13 +95,12 @@ func eventValidator(logger log.Logger) internal.Options {
 				return pubsub.ValidationAccept
 			}
 			feedAddr := ethkey.PeerIDToAddress(psMsg.GetFrom())
-			typ := eventMsg.Type
 			// Check when message was created, ignore if older than 5 min, reject if older than 10 min:
 			if time.Since(eventMsg.MessageDate) > 5*time.Minute {
 				logger.
 					WithField("peerID", psMsg.GetFrom().String()).
 					WithField("from", feedAddr.String()).
-					WithField("type", typ).
+					WithField("type", eventMsg.Type).
 					Warn("Event message rejected, the message is older than 5 min")
 				if time.Since(eventMsg.MessageDate) > 10*time.Minute {
 					return pubsub.ValidationReject
