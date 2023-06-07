@@ -69,7 +69,11 @@ type Meta struct {
 }
 
 func (p *ReceivedMessage) Fields() log.Fields {
+	c := p.Meta.Transport
+	if p.Meta.Topic != "" {
+		c += ":" + p.Meta.Topic
+	}
 	return log.Fields{
-		"channel": p.Meta.Transport + ":" + p.Meta.Topic,
+		"channel": c,
 	}
 }
