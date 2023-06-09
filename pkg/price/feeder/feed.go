@@ -32,7 +32,7 @@ import (
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport/messages"
 )
 
-const LoggerTag = "FEEDER"
+const LoggerTag = "FEED"
 
 // Feed is a service which periodically fetches prices and then sends them to
 // the Oracle network using transport layer.
