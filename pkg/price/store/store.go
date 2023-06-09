@@ -34,6 +34,7 @@ const LoggerTag = "PRICE_STORE"
 var ErrInvalidSignature = errors.New("received price has an invalid signature")
 var ErrInvalidPrice = errors.New("received price is invalid")
 var ErrUnknownPair = errors.New("received pair is not configured")
+var ErrUnknownFeed = errors.New("messages from feed are not allowed")
 
 // PriceStore contains a list of prices.
 type PriceStore struct {
@@ -111,7 +112,7 @@ func New(cfg Config) (*PriceStore, error) {
 		storage:   cfg.Storage,
 		transport: cfg.Transport,
 		pairs:     cfg.Pairs,
-		pairs:     cfg.Feeds,
+		feeds:     cfg.Feeds,
 		log:       cfg.Logger.WithField("tag", LoggerTag),
 		recover:   cfg.Recoverer,
 		waitCh:    make(chan error),
@@ -164,6 +165,9 @@ func (p *PriceStore) collectPrice(price *messages.Price) error {
 	if err != nil {
 		return ErrInvalidSignature
 	}
+	if !p.isFeedSupported(from.String()) {
+		return ErrUnknownFeed
+	}
 	if !p.isPairSupported(price.Price.Wat) {
 		return ErrUnknownPair
 	}
@@ -181,9 +185,9 @@ func (p *PriceStore) isPairSupported(pair string) bool {
 	}
 	return false
 }
-func (p *PriceStore) isFeedSupported(pair string) bool {
-	for _, a := range p.pairs {
-		if a == pair {
+func (p *PriceStore) isFeedSupported(feed string) bool {
+	for _, a := range p.feeds {
+		if a == feed {
 			return true
 		}
 	}
