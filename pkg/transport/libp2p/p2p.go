@@ -39,7 +39,7 @@ import (
 	"github.com/chronicleprotocol/oracle-suite/pkg/util/chanutil"
 )
 
-const LoggerTag = "P2P"
+const LoggerTag = "LIBP2P"
 const TransportName = "libp2p"
 
 // Mode describes operating mode of the node.
