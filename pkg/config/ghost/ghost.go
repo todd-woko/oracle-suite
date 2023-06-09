@@ -28,7 +28,7 @@ import (
 	priceproviderConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/priceprovider"
 	transportConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/transport"
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
-	"github.com/chronicleprotocol/oracle-suite/pkg/price/feeder"
+	"github.com/chronicleprotocol/oracle-suite/pkg/price/feed"
 
 	pkgSupervisor "github.com/chronicleprotocol/oracle-suite/pkg/supervisor"
 	"github.com/chronicleprotocol/oracle-suite/pkg/sysmon"
@@ -51,7 +51,7 @@ type Config struct {
 
 // Services returns the services that are configured from the Config struct.
 type Services struct {
-	Feed      *feeder.Feed
+	Feed      *feed.Feed
 	Transport pkgTransport.Transport
 	Logger    log.Logger
 

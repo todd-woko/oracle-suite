@@ -24,7 +24,7 @@ import (
 	ethereumConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/ethereum"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
-	"github.com/chronicleprotocol/oracle-suite/pkg/price/feeder"
+	"github.com/chronicleprotocol/oracle-suite/pkg/price/feed"
 	"github.com/chronicleprotocol/oracle-suite/pkg/price/provider"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport"
 	"github.com/chronicleprotocol/oracle-suite/pkg/util/timeutil"
@@ -46,7 +46,7 @@ type Config struct {
 	Content hcl.BodyContent `hcl:",content"`
 
 	// Configured service:
-	feeder *feeder.Feed
+	feeder *feed.Feed
 }
 
 type Dependencies struct {
@@ -56,7 +56,7 @@ type Dependencies struct {
 	Logger        log.Logger
 }
 
-func (c *Config) Feed(d Dependencies) (*feeder.Feed, error) {
+func (c *Config) Feed(d Dependencies) (*feed.Feed, error) {
 	if c.feeder != nil {
 		return c.feeder, nil
 	}
@@ -81,7 +81,7 @@ func (c *Config) Feed(d Dependencies) (*feeder.Feed, error) {
 	for i, p := range c.Pairs {
 		pairs[i] = p.String()
 	}
-	cfg := feeder.Config{
+	cfg := feed.Config{
 		PriceProvider: d.PriceProvider,
 		Signer:        ethereumKey,
 		Transport:     d.Transport,
@@ -89,7 +89,7 @@ func (c *Config) Feed(d Dependencies) (*feeder.Feed, error) {
 		Interval:      timeutil.NewTicker(time.Second * time.Duration(c.Interval)),
 		Pairs:         pairs,
 	}
-	feed, err := feeder.New(cfg)
+	feed, err := feed.New(cfg)
 	if err != nil {
 		return nil, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
