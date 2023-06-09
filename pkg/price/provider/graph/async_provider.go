@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/price/provider"
-	"github.com/chronicleprotocol/oracle-suite/pkg/price/provider/graph/feeder"
+	"github.com/chronicleprotocol/oracle-suite/pkg/price/provider/graph/feed"
 	"github.com/chronicleprotocol/oracle-suite/pkg/price/provider/graph/nodes"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
@@ -35,7 +35,7 @@ type AsyncProvider struct {
 	*Provider
 	ctx    context.Context
 	waitCh chan error
-	feeder *feeder.Feeder
+	feeder *feed.Feeder
 	nodes  []nodes.Node
 	log    log.Logger
 }
@@ -43,7 +43,7 @@ type AsyncProvider struct {
 // NewAsyncProvider returns a new AsyncGofer instance.
 func NewAsyncProvider(
 	graph map[provider.Pair]nodes.Node,
-	feeder *feeder.Feeder,
+	feeder *feed.Feeder,
 	logger log.Logger,
 ) (*AsyncProvider, error) {
 
@@ -73,7 +73,7 @@ func (a *AsyncProvider) Start(ctx context.Context) error {
 	originNodes := map[string][]nodes.Node{}
 	for _, graph := range a.graphs {
 		nodes.Walk(func(node nodes.Node) {
-			if fn, ok := node.(feeder.Feedable); ok {
+			if fn, ok := node.(feed.Feedable); ok {
 				origin := fn.OriginPair().Origin
 				originNodes[origin] = append(originNodes[origin], fn)
 			}
@@ -128,7 +128,7 @@ func (a *AsyncProvider) contextCancelHandler() {
 func gcdTTL(ns []nodes.Node) time.Duration {
 	ttl := time.Duration(0)
 	nodes.Walk(func(n nodes.Node) {
-		if f, ok := n.(feeder.Feedable); ok {
+		if f, ok := n.(feed.Feedable); ok {
 			if ttl == 0 {
 				ttl = f.MinTTL()
 			}

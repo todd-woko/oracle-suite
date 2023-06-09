@@ -46,7 +46,7 @@ type Config struct {
 	Content hcl.BodyContent `hcl:",content"`
 
 	// Configured service:
-	feeder *feed.Feed
+	feed *feed.Feed
 }
 
 type Dependencies struct {
@@ -57,8 +57,8 @@ type Dependencies struct {
 }
 
 func (c *Config) Feed(d Dependencies) (*feed.Feed, error) {
-	if c.feeder != nil {
-		return c.feeder, nil
+	if c.feed != nil {
+		return c.feed, nil
 	}
 	if c.Interval == 0 {
 		return nil, hcl.Diagnostics{&hcl.Diagnostic{
@@ -98,6 +98,6 @@ func (c *Config) Feed(d Dependencies) (*feed.Feed, error) {
 			Subject:  c.Range.Ptr(),
 		}
 	}
-	c.feeder = feed
+	c.feed = feed
 	return feed, nil
 }

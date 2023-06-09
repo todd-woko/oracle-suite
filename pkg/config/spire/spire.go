@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/defiweb/go-eth/types"
 	"github.com/hashicorp/hcl/v2"
 
 	ethereumConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/ethereum"
@@ -57,7 +58,7 @@ type ConfigSpire struct {
 	Pairs []string `hcl:"pairs"`
 
 	// Pairs is a list of pairs to store in the price store.
-	Feeds []string `hcl:"feeds"`
+	Feeds []types.Address `hcl:"feeds"`
 
 	// EthereumKey is a name of an Ethereum key to use for signing
 	// prices.

@@ -61,7 +61,7 @@ type Config struct {
 	Pairs []string
 
 	// Feeds is the list of feeds which are supported by the store.
-	Feeds []string
+	Feeds []types.Address
 
 	// Logger is a current logger interface used by the PriceStore.
 	// The Logger is required to monitor asynchronous processes.
@@ -108,11 +108,15 @@ func New(cfg Config) (*PriceStore, error) {
 	if cfg.Recoverer == nil {
 		cfg.Recoverer = crypto.ECRecoverer
 	}
+	feeds := make([]string, len(cfg.Feeds))
+	for i, feed := range cfg.Feeds {
+		feeds[i] = feed.String()
+	}
 	return &PriceStore{
 		storage:   cfg.Storage,
 		transport: cfg.Transport,
 		pairs:     cfg.Pairs,
-		feeds:     cfg.Feeds,
+		feeds:     feeds,
 		log:       cfg.Logger.WithField("tag", LoggerTag),
 		recover:   cfg.Recoverer,
 		waitCh:    make(chan error),

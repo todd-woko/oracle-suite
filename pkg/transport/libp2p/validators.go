@@ -60,11 +60,11 @@ func messageValidator(topics map[string]transport.Message, logger log.Logger) in
 	}
 }
 
-func feedValidator(feeders []types.Address, logger log.Logger) internal.Options {
+func feedValidator(feeds []types.Address, logger log.Logger) internal.Options {
 	return func(n *internal.Node) error {
 		n.AddValidator(func(ctx context.Context, topic string, id peer.ID, psMsg *pubsub.Message) pubsub.ValidationResult {
 			from := ethkey.PeerIDToAddress(psMsg.GetFrom())
-			if !feedAllowed(from, feeders) {
+			if !feedAllowed(from, feeds) {
 				logger.
 					WithField("peerID", psMsg.GetFrom().String()).
 					WithField("from", from).
@@ -77,8 +77,8 @@ func feedValidator(feeders []types.Address, logger log.Logger) internal.Options 
 	}
 }
 
-func feedAllowed(addr types.Address, feeders []types.Address) bool {
-	for _, f := range feeders {
+func feedAllowed(addr types.Address, feeds []types.Address) bool {
+	for _, f := range feeds {
 		if f == addr {
 			return true
 		}
