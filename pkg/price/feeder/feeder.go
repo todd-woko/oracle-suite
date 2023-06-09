@@ -34,10 +34,9 @@ import (
 
 const LoggerTag = "FEEDER"
 
-// Feeder is a service which periodically fetches prices and then sends them to
+// Feed is a service which periodically fetches prices and then sends them to
 // the Oracle network using transport layer.
-// TODO(mdobak): Rename to Feed.
-type Feeder struct {
+type Feed struct {
 	ctx    context.Context
 	waitCh chan error
 
@@ -49,7 +48,7 @@ type Feeder struct {
 	log           log.Logger
 }
 
-// Config is the configuration for the Feeder.
+// Config is the configuration for the Feed.
 type Config struct {
 	// Pairs is a list supported pairs in the format "QUOTE/BASE".
 	Pairs []string
@@ -67,12 +66,12 @@ type Config struct {
 	// Interval describes how often we should send prices to the network.
 	Interval *timeutil.Ticker
 
-	// Logger is a current logger interface used by the Feeder.
+	// Logger is a current logger interface used by the Feed.
 	Logger log.Logger
 }
 
-// New creates a new instance of the Feeder.
-func New(cfg Config) (*Feeder, error) {
+// New creates a new instance of the Feed.
+func New(cfg Config) (*Feed, error) {
 	if cfg.PriceProvider == nil {
 		return nil, errors.New("price provider must not be nil")
 	}
@@ -89,7 +88,7 @@ func New(cfg Config) (*Feeder, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &Feeder{
+	g := &Feed{
 		waitCh:        make(chan error),
 		priceProvider: cfg.PriceProvider,
 		signer:        cfg.Signer,
@@ -102,7 +101,7 @@ func New(cfg Config) (*Feeder, error) {
 }
 
 // Start implements the supervisor.Service interface.
-func (g *Feeder) Start(ctx context.Context) error {
+func (g *Feed) Start(ctx context.Context) error {
 	if g.ctx != nil {
 		return errors.New("service can be started only once")
 	}
@@ -118,13 +117,13 @@ func (g *Feeder) Start(ctx context.Context) error {
 }
 
 // Wait implements the supervisor.Service interface.
-func (g *Feeder) Wait() <-chan error {
+func (g *Feed) Wait() <-chan error {
 	return g.waitCh
 }
 
 // broadcast sends price for single pair to the network. This method uses
 // current price from the Provider, so it must be updated beforehand.
-func (g *Feeder) broadcast(pair provider.Pair) error {
+func (g *Feed) broadcast(pair provider.Pair) error {
 	var err error
 
 	// Create price.
@@ -158,7 +157,7 @@ func (g *Feeder) broadcast(pair provider.Pair) error {
 	return err
 }
 
-func (g *Feeder) broadcasterRoutine() {
+func (g *Feed) broadcasterRoutine() {
 	for {
 		select {
 		case <-g.ctx.Done():
@@ -181,7 +180,7 @@ func (g *Feeder) broadcasterRoutine() {
 	}
 }
 
-func (g *Feeder) contextCancelHandler() {
+func (g *Feed) contextCancelHandler() {
 	defer func() { close(g.waitCh) }()
 	defer g.log.Debug("Stopped")
 	<-g.ctx.Done()

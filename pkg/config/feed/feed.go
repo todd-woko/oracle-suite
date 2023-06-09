@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -46,7 +46,7 @@ type Config struct {
 	Content hcl.BodyContent `hcl:",content"`
 
 	// Configured service:
-	feeder *feeder.Feeder
+	feeder *feeder.Feed
 }
 
 type Dependencies struct {
@@ -56,7 +56,7 @@ type Dependencies struct {
 	Logger        log.Logger
 }
 
-func (c *Config) Feed(d Dependencies) (*feeder.Feeder, error) {
+func (c *Config) Feed(d Dependencies) (*feeder.Feed, error) {
 	if c.feeder != nil {
 		return c.feeder, nil
 	}

@@ -41,6 +41,7 @@ type PriceStore struct {
 	storage   Storage
 	transport transport.Transport
 	pairs     []string
+	feeds     []string
 	log       log.Logger
 	recover   crypto.Recoverer
 	waitCh    chan error
@@ -57,6 +58,9 @@ type Config struct {
 
 	// Pairs is the list of asset pairs which are supported by the store.
 	Pairs []string
+
+	// Feeds is the list of feeds which are supported by the store.
+	Feeds []string
 
 	// Logger is a current logger interface used by the PriceStore.
 	// The Logger is required to monitor asynchronous processes.
@@ -107,6 +111,7 @@ func New(cfg Config) (*PriceStore, error) {
 		storage:   cfg.Storage,
 		transport: cfg.Transport,
 		pairs:     cfg.Pairs,
+		pairs:     cfg.Feeds,
 		log:       cfg.Logger.WithField("tag", LoggerTag),
 		recover:   cfg.Recoverer,
 		waitCh:    make(chan error),
@@ -176,6 +181,14 @@ func (p *PriceStore) isPairSupported(pair string) bool {
 	}
 	return false
 }
+func (p *PriceStore) isFeedSupported(pair string) bool {
+	for _, a := range p.pairs {
+		if a == pair {
+			return true
+		}
+	}
+	return false
+}
 
 func (p *PriceStore) priceCollectorRoutine() {
 	priceV0Ch := p.transport.Messages(messages.PriceV0MessageName)
@@ -194,7 +207,9 @@ func (p *PriceStore) priceCollectorRoutine() {
 
 func (p *PriceStore) handlePriceMessage(msg transport.ReceivedMessage) {
 	if msg.Error != nil {
-		p.log.WithError(msg.Error).Error("Unable to read prices from the transport layer")
+		p.log.
+			WithError(msg.Error).
+			Error("Unable to read prices from the transport layer")
 		return
 	}
 	price, ok := msg.Message.(*messages.Price)
