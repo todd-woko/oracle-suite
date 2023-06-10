@@ -90,7 +90,7 @@ func (n *API) PullPrices(arg *PullPricesArg, resp *PullPricesResp) error {
 
 	switch {
 	case arg.FilterAssetPair != "" && arg.FilterFeeder != "":
-		price, err := n.priceStore.GetByFeeder(ctx, arg.FilterAssetPair, types.MustAddressFromHex(arg.FilterFeeder))
+		price, err := n.priceStore.GetByFeed(ctx, arg.FilterAssetPair, types.MustAddressFromHex(arg.FilterFeeder))
 		if err != nil {
 			return err
 		}
@@ -134,7 +134,7 @@ func (n *API) PullPrice(arg *PullPriceArg, resp *PullPriceResp) error {
 		WithField("feed", arg.Feeder).
 		Info("Pull price")
 
-	price, err := n.priceStore.GetByFeeder(ctx, arg.AssetPair, types.MustAddressFromHex(arg.Feeder))
+	price, err := n.priceStore.GetByFeed(ctx, arg.AssetPair, types.MustAddressFromHex(arg.Feeder))
 	if err != nil {
 		return err
 	}

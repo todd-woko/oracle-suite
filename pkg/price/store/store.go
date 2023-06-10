@@ -86,7 +86,7 @@ type Storage interface {
 
 	// GetByFeeder returns the latest price for given asset pair sent by given
 	// feeder. The method is thread-safe.
-	GetByFeeder(ctx context.Context, pair string, feeder types.Address) (*messages.Price, error)
+	GetByFeed(ctx context.Context, pair string, feeder types.Address) (*messages.Price, error)
 }
 
 type FeederPrice struct {
@@ -159,9 +159,9 @@ func (p *PriceStore) GetByAssetPair(ctx context.Context, pair string) ([]*messag
 	return p.storage.GetByAssetPair(ctx, pair)
 }
 
-// GetByFeeder returns the latest price for given asset pair sent by given feeder.
-func (p *PriceStore) GetByFeeder(ctx context.Context, pair string, feeder types.Address) (*messages.Price, error) {
-	return p.storage.GetByFeeder(ctx, pair, feeder)
+// GetByFeed returns the latest price for given asset pair sent by given feeder.
+func (p *PriceStore) GetByFeed(ctx context.Context, pair string, feed types.Address) (*messages.Price, error) {
+	return p.storage.GetByFeed(ctx, pair, feed)
 }
 
 func (p *PriceStore) collectPrice(price *messages.Price) error {
@@ -233,6 +233,7 @@ func (p *PriceStore) handlePriceMessage(msg transport.ReceivedMessage) {
 			WithError(err).
 			WithFields(price.Price.Fields(p.recover)).
 			WithField("version", price.Version).
+			WithFields(msg.Fields()).
 			Warn("Price rejected")
 	} else {
 		p.log.
