@@ -27,6 +27,7 @@ import (
 	"github.com/defiweb/go-eth/crypto"
 	"github.com/defiweb/go-eth/hexutil"
 	"github.com/defiweb/go-eth/types"
+	"github.com/defiweb/go-eth/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -64,46 +65,69 @@ func readEachLineFromFile(data []byte) [][]byte {
 //go:embed testdata/messages.jsonl
 var messages []byte
 
+func TestPrice_Sign(t *testing.T) {
+	tests := prepTestCases(t)
+	k := wallet.NewKeyFromBytes([]byte("0x0f2e4a9f5b4a9c3a"))
+	expectedFrom := k.Address().String()
+
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("line-%03d-id-%s", i+1, tt.name), func(t *testing.T) {
+			assert.NoError(t, tt.message.Price.Sign(k), "could not sign message")
+			f, err := tt.message.Price.From(crypto.ECRecoverer)
+			assert.NoError(t, err, "could not recover signer")
+			assert.Equal(t, expectedFrom, f.String(), "signer not as expected")
+		})
+	}
+}
+
 func TestPrice_Unmarshall(t *testing.T) {
-	var tests []struct {
-		name     string
-		peerAddr string
-		message  string
-		format   string
-	}
-	var pl priceLog
-	for _, l := range readEachLineFromFile(messages) {
-		require.NoError(t, json.Unmarshal(l, &pl))
-		tests = append(tests, struct {
-			name     string
-			peerAddr string
-			message  string
-			format   string
-		}{pl.MessageID, pl.PeerAddr, pl.Message, pl.Format})
-	}
+	tests := prepTestCases(t)
+	k := wallet.NewKeyFromBytes([]byte(`0x0f2e4a9f5b4a9c3a`))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var b []byte
-			if tt.format == "BINARY" {
-				b = hexutil.MustHexToBytes(tt.message)
-			} else if tt.format == "TEXT" {
-				b = []byte(tt.message)
-			} else {
-				t.Skip("unknown format")
-			}
-
-			var p Price
-			assert.NoError(t, p.UnmarshallBinary(b))
-
-			from, err := p.Price.From(crypto.ECRecoverer)
+	for i, tt := range tests {
+		t.Run(fmt.Sprintf("line-%03d-id-%s", i+1, tt.name), func(t *testing.T) {
+			from, err := tt.message.Price.From(crypto.ECRecoverer)
 			if err != nil && assert.EqualError(t, err, "invalid square root") {
 				t.Skip("test data not valid for this case")
 			} else {
-				assert.Equal(t, tt.peerAddr, from.String())
+				assert.Equal(t, tt.peerAddr, from.String(), "message not from expected peer")
+
+				assert.NoError(t, tt.message.Price.Sign(k), "could not sign message")
+				f, err := tt.message.Price.From(crypto.ECRecoverer)
+				assert.NoError(t, err, "could not recover signer")
+				assert.Equal(t, k.Address().String(), f.String(), "signer not as expected")
 			}
 		})
 	}
+}
+
+type tc struct {
+	name     string
+	peerAddr string
+	message  Price
+	format   string
+}
+
+func prepTestCases(t *testing.T) []tc {
+	var tests []tc
+	var pl priceLog
+	for _, l := range readEachLineFromFile(messages) {
+		require.NoError(t, json.Unmarshal(l, &pl))
+
+		var b []byte
+		switch pl.Format {
+		case "BINARY":
+			b = hexutil.MustHexToBytes(pl.Message)
+		case "TEXT":
+			b = []byte(pl.Message)
+		}
+
+		var p Price
+		require.NoError(t, p.UnmarshallBinary(b))
+
+		tests = append(tests, tc{pl.MessageID, pl.PeerAddr, p, pl.Format})
+	}
+	return tests
 }
 
 func TestPrice_Marshalling(t *testing.T) {
