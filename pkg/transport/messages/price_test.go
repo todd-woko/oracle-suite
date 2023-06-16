@@ -275,7 +275,7 @@ type tc struct {
 //go:embed testdata/messages.jsonl
 var messages []byte
 
-//go:embed testdata/messages.jsonl
+//go:embed testdata/messages-libp2p.jsonl
 var messages_libp2p []byte
 
 func prepTestCases(t *testing.T) []tc {
