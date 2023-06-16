@@ -62,26 +62,23 @@ func readEachLineFromFile(data []byte) [][]byte {
 	return res
 }
 
-//go:embed testdata/messages.jsonl
-var messages []byte
-
 func TestPrice_Sign(t *testing.T) {
-	t.Skip("TODO: fix the issue with the signing")
+	// t.Skip("TODO: fix the issue with the signing")
 
 	k := wallet.NewKeyFromBytes([]byte("0x0f2e4a9f5b4a9c3a"))
 	expectedFrom := k.Address().String()
 
-	for i, tt := range prepTestCases(t) {
-		t.Run(fmt.Sprintf("line-%03d-id-%s", i+1, tt.name), func(t *testing.T) {
-			h := tt.message.Price.Hash().String()
+	for _, tt := range prepTestCases(t) {
+		t.Run(tt.name, func(t *testing.T) {
+			h := tt.message.Hash().String()
 
-			assert.NoError(t, tt.message.Price.Sign(k), "could not sign message")
+			assert.NoError(t, tt.message.Sign(k), "could not sign message")
 
-			assert.Equal(t, h, tt.message.Price.Hash().String(), "hash changed after signing")
+			assert.Equal(t, h, tt.message.Hash().String(), "hash changed after signing")
 
-			f, err := tt.message.Price.From(crypto.ECRecoverer)
+			f, err := tt.message.From(crypto.ECRecoverer)
 
-			assert.NoError(t, err, "could not recover signer")
+			require.NoError(t, err, "could not recover signer")
 			assert.Equal(t, expectedFrom, f.String(), "signer not as expected")
 		})
 	}
@@ -94,14 +91,14 @@ func TestPrice_Unmarshall(t *testing.T) {
 
 	for i, tt := range prepTestCases(t) {
 		t.Run(fmt.Sprintf("line-%03d-id-%s", i+1, tt.name), func(t *testing.T) {
-			from, err := tt.message.Price.From(crypto.ECRecoverer)
+			from, err := tt.message.From(crypto.ECRecoverer)
 			if err != nil && assert.EqualError(t, err, "invalid square root") {
 				t.Skip("test data not valid for this case")
 			} else {
 				assert.Equal(t, tt.peerAddr, from.String(), "message not from expected peer")
 
-				assert.NoError(t, tt.message.Price.Sign(k), "could not sign message")
-				f, err := tt.message.Price.From(crypto.ECRecoverer)
+				assert.NoError(t, tt.message.Sign(k), "could not sign message")
+				f, err := tt.message.From(crypto.ECRecoverer)
 				assert.NoError(t, err, "could not recover signer")
 				assert.Equal(t, k.Address().String(), f.String(), "signer not as expected")
 			}
@@ -271,14 +268,20 @@ func FuzzPrice_UnmarshallBinary(f *testing.F) {
 type tc struct {
 	name     string
 	peerAddr string
-	message  Price
+	message  median.Price
 	format   string
 }
 
+//go:embed testdata/messages.jsonl
+var messages []byte
+
+//go:embed testdata/messages.jsonl
+var messages_libp2p []byte
+
 func prepTestCases(t *testing.T) []tc {
 	var tests []tc
-	var pl priceLog
-	for _, l := range readEachLineFromFile(messages) {
+	for i, l := range readEachLineFromFile(messages) {
+		var pl priceLog
 		require.NoError(t, json.Unmarshal(l, &pl))
 
 		var b []byte
@@ -292,7 +295,14 @@ func prepTestCases(t *testing.T) []tc {
 		var p Price
 		require.NoError(t, p.UnmarshallBinary(b))
 
-		tests = append(tests, tc{pl.MessageID, pl.PeerAddr, p, pl.Format})
+		tests = append(tests, tc{fmt.Sprintf("msg-%03d-%s", i+1, pl.MessageID), pl.PeerAddr, *p.Price, pl.Format})
+	}
+
+	for i, l := range readEachLineFromFile(messages_libp2p) {
+		var p Price
+		require.NoError(t, json.Unmarshal(l, &p))
+
+		tests = append(tests, tc{fmt.Sprintf("libp2p-%03d", i+1), "", *p.Price, "JSON"})
 	}
 	return tests
 }
