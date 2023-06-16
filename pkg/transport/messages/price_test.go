@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,7 @@
 package messages
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -23,12 +24,87 @@ import (
 	"testing"
 	"time"
 
+	"github.com/defiweb/go-eth/crypto"
+	"github.com/defiweb/go-eth/hexutil"
 	"github.com/defiweb/go-eth/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/price/median"
 )
+
+type priceLog struct {
+	Format               string    `json:"format"`
+	Level                string    `json:"level"`
+	Message              string    `json:"message"`
+	MessageID            string    `json:"messageID"`
+	Msg                  string    `json:"msg"`
+	PeerAddr             string    `json:"peerAddr"`
+	PeerID               string    `json:"peerID"`
+	ReceivedFromPeerAddr string    `json:"receivedFromPeerAddr"`
+	ReceivedFromPeerID   string    `json:"receivedFromPeerID"`
+	Tag                  string    `json:"tag"`
+	Time                 time.Time `json:"time"`
+	Topic                string    `json:"topic"`
+	XHostID              string    `json:"x-hostID"`
+}
+
+func readEachLineFromFile(data []byte) [][]byte {
+	lines := strings.Split(string(data), "\n")
+	var res [][]byte
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		res = append(res, []byte(line))
+	}
+	return res
+}
+
+//go:embed testdata/messages.jsonl
+var messages []byte
+
+func TestPrice_Unmarshall(t *testing.T) {
+	var tests []struct {
+		name     string
+		peerAddr string
+		message  string
+		format   string
+	}
+	var pl priceLog
+	for _, l := range readEachLineFromFile(messages) {
+		require.NoError(t, json.Unmarshal(l, &pl))
+		tests = append(tests, struct {
+			name     string
+			peerAddr string
+			message  string
+			format   string
+		}{pl.MessageID, pl.PeerAddr, pl.Message, pl.Format})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b []byte
+			if tt.format == "BINARY" {
+				b = hexutil.MustHexToBytes(tt.message)
+			} else if tt.format == "TEXT" {
+				b = []byte(tt.message)
+			} else {
+				t.Skip("unknown format")
+			}
+
+			var p Price
+			assert.NoError(t, p.UnmarshallBinary(b))
+
+			from, err := p.Price.From(crypto.ECRecoverer)
+			if err != nil && assert.EqualError(t, err, "invalid square root") {
+				t.Skip("test data not valid for this case")
+			} else {
+				assert.Equal(t, tt.peerAddr, from.String())
+			}
+		})
+	}
+}
 
 func TestPrice_Marshalling(t *testing.T) {
 	tests := []struct {

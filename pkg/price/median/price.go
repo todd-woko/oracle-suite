@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -73,18 +73,14 @@ func (p *Price) Float64Price() float64 {
 }
 
 func (p *Price) From(r crypto.Recoverer) (*types.Address, error) {
-	from, err := r.RecoverMessage(p.hash().Bytes(), p.Sig)
-	if err != nil {
-		return nil, err
-	}
-	return from, nil
+	return r.RecoverMessage(p.Hash().Bytes(), p.Sig)
 }
 
 func (p *Price) Sign(signer wallet.Key) error {
 	if p.Val == nil {
 		return ErrPriceNotSet
 	}
-	signature, err := signer.SignMessage(p.hash().Bytes())
+	signature, err := signer.SignMessage(p.Hash().Bytes())
 	if err != nil {
 		return err
 	}
@@ -102,7 +98,7 @@ func (p *Price) Fields(r crypto.Recoverer) log.Fields {
 		"wat":  p.Wat,
 		"age":  p.Age.UTC().Format(time.RFC3339),
 		"val":  p.Val.String(),
-		"hash": hex.EncodeToString(p.hash().Bytes()),
+		"hash": hex.EncodeToString(p.Hash().Bytes()),
 		"V":    hex.EncodeToString(p.Sig.V.Bytes()),
 		"R":    hex.EncodeToString(p.Sig.R.Bytes()),
 		"S":    hex.EncodeToString(p.Sig.S.Bytes()),
@@ -165,8 +161,8 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-// hash is an equivalent of keccak256(abi.encodePacked(val_, age_, wat))) in Solidity.
-func (p *Price) hash() types.Hash {
+// Hash is an equivalent of keccak256(abi.encodePacked(val_, age_, wat))) in Solidity.
+func (p *Price) Hash() types.Hash {
 	// Median:
 	median := make([]byte, 32)
 	p.Val.FillBytes(median)
