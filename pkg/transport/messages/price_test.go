@@ -63,29 +63,35 @@ func readEachLineFromFile(data []byte) [][]byte {
 }
 
 func TestPrice_Sign(t *testing.T) {
-	t.Skip("TODO: fix the issue with the signing")
+	// t.Skip("TODO: fix the issue with the signing")
 
 	k := wallet.NewKeyFromBytes([]byte("0x0f2e4a9f5b4a9c3a"))
 	expectedFrom := k.Address().String()
 
 	for _, tt := range prepTestCases(t) {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.priceHex != "" {
-				require.Equal(t, tt.priceHex, types.MustHashFromBytes(tt.message.Val.Bytes(), types.PadLeft).String(), "price hex mismatch")
-			}
-			// if tt.timeHex != "" {
-			// 	require.Equal(t, tt.timeHex, types.MustHashFromBigInt(big.NewInt(tt.message.Age.Unix())).String(), "time hex mismatch")
-			// }
+			if tt.priceHex != "" && tt.timeHex != "" {
 
-			h := tt.message.Hash().String()
+				wat := make([]byte, 32)
+				copy(wat, tt.message.Wat)
+
+				hash := hexutil.MustHexToBytes(tt.priceHex[2:] + tt.timeHex[2:] + hexutil.BytesToHex(wat)[2:])
+				if !assert.Equal(t, crypto.Keccak256(hash).String(), tt.message.Hash().String(), "hashes do not match") {
+					val := make([]byte, 32)
+					tt.message.Val.FillBytes(val)
+					t.Log(hexutil.BytesToHex(val)[2:])
+					assert.Equal(t, tt.priceHex, hexutil.BytesToHex(val), "calculated priceHex does not match the one in the message")
+
+					t.Log("values", tt.message.Val.String(), tt.message.Age.Unix(), tt.message.Wat)
+					t.Log("hashes", tt.priceHex[2:], tt.timeHex[2:], hexutil.BytesToHex(wat)[2:])
+				}
+			}
 
 			assert.NoError(t, tt.message.Sign(k), "could not sign message")
 
-			assert.Equal(t, h, tt.message.Hash().String(), "hash changed after signing")
-
 			f, err := tt.message.From(crypto.ECRecoverer)
-
 			require.NoError(t, err, "could not recover signer")
+
 			assert.Equal(t, expectedFrom, f.String(), "signer not as expected")
 		})
 	}

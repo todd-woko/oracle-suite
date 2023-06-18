@@ -164,8 +164,8 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 // Hash is an equivalent of keccak256(abi.encodePacked(val_, age_, wat))) in Solidity.
 func (p *Price) Hash() types.Hash {
 	// Median:
-	median := make([]byte, 32)
-	p.Val.FillBytes(median)
+	val := make([]byte, 32)
+	p.Val.FillBytes(val)
 
 	// Time:
 	age := make([]byte, 32)
@@ -176,7 +176,7 @@ func (p *Price) Hash() types.Hash {
 	copy(wat, p.Wat)
 
 	hash := make([]byte, 96)
-	copy(hash[0:32], median)
+	copy(hash[0:32], val)
 	copy(hash[32:64], age)
 	copy(hash[64:96], wat)
 
