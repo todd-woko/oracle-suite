@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -17,13 +17,18 @@ package median
 
 import (
 	"crypto/rand"
+	_ "embed"
+	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/defiweb/go-eth/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/chronicleprotocol/oracle-suite/pkg/ethereum/mocks"
 )
@@ -134,4 +139,75 @@ func TestPrice_Marshall(t *testing.T) {
 	assert.Equal(t, p.Age, p2.Age)
 	assert.Equal(t, p.Val, p2.Val)
 	assert.Equal(t, p.Sig.Bytes(), p2.Sig.Bytes())
+}
+
+type tc struct {
+	name string
+	ps   priceSSB
+}
+
+func TestPrice_PreHash(t *testing.T) {
+	// t.Skip("TODO: this test might be broken")
+	var tests []tc
+	var ps priceSSB
+	for i, l := range readEachLineFromFile(messages_ssb) {
+		require.NoError(t, json.Unmarshal(l, &ps))
+		tests = append(tests, tc{
+			name: fmt.Sprintf("ssb-%03d", i+1),
+			ps:   ps,
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := tt.ps.toPrice()
+			assert.Equal(t, tt.ps.Price, p.Float64Price())
+			assert.Equal(t, tt.ps.Time, p.Age.Unix())
+
+			assert.Len(t, p.h(), 96)
+
+			assert.Equal(t, tt.ps.PriceHex, fmt.Sprintf("%064x", p.Val.Bytes()), "priceHex mismatch")
+			assert.Equal(t, tt.ps.TimeHex, fmt.Sprintf("%064x", p.Age.Unix()), "timeHex mismatch")
+		})
+	}
+}
+
+//go:embed testdata/messages-ssb.jsonl
+var messages_ssb []byte
+
+// allR+=( "${_sig:0:64}" )
+// allS+=( "${_sig:64:64}" )
+// allV+=( "$(ethereum --to-dec "${_sig:128:2}")" )
+type priceSSB struct {
+	Type      string  `json:"type"`
+	Price     float64 `json:"price"`
+	PriceHex  string  `json:"priceHex"`
+	Time      int64   `json:"time"`
+	TimeHex   string  `json:"timeHex"`
+	Signature string  `json:"signature"`
+}
+
+func (ps priceSSB) typeHex() string {
+	return fmt.Sprintf(fmt.Sprintf("%%s%%0%ds", 64-len(ps.Type)*2), ps.Type, "")
+}
+
+func (ps priceSSB) toPrice() Price {
+	p := Price{
+		Wat: ps.Type,
+		Age: time.Unix(ps.Time, 0),
+	}
+	p.SetFloat64Price(ps.Price)
+	return p
+}
+
+func readEachLineFromFile(data []byte) [][]byte {
+	lines := strings.Split(string(data), "\n")
+	var res [][]byte
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		res = append(res, []byte(line))
+	}
+	return res
 }

@@ -122,8 +122,7 @@ func (p *Price) MarshalJSON() ([]byte, error) {
 
 func (p *Price) UnmarshalJSON(bytes []byte) error {
 	j := &jsonPrice{}
-	err := json.Unmarshal(bytes, j)
-	if err != nil {
+	if err := json.Unmarshal(bytes, j); err != nil {
 		return errUnmarshalling("price fields errors", err)
 	}
 
@@ -132,7 +131,7 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 	j.S = strings.TrimPrefix(j.S, "0x")
 
 	if (len(j.V)+len(j.R)+len(j.S) != 0) && (len(j.V) != 2 || len(j.R) != 64 || len(j.S) != 64) {
-		return errUnmarshalling("VRS fields contain invalid signature lengths", err)
+		return errUnmarshalling("VRS fields contain invalid signature lengths", nil)
 	}
 
 	p.Wat = j.Wat
@@ -163,6 +162,10 @@ func (p *Price) UnmarshalJSON(bytes []byte) error {
 
 // Hash is an equivalent of keccak256(abi.encodePacked(val_, age_, wat))) in Solidity.
 func (p *Price) Hash() types.Hash {
+	return crypto.Keccak256(p.h())
+}
+
+func (p *Price) h() []byte {
 	// Median:
 	val := make([]byte, 32)
 	p.Val.FillBytes(val)
@@ -175,10 +178,9 @@ func (p *Price) Hash() types.Hash {
 	wat := make([]byte, 32)
 	copy(wat, p.Wat)
 
-	hash := make([]byte, 96)
-	copy(hash[0:32], val)
-	copy(hash[32:64], age)
-	copy(hash[64:96], wat)
-
-	return crypto.Keccak256(hash)
+	h := make([]byte, 96)
+	copy(h[0:32], val)
+	copy(h[32:64], age)
+	copy(h[64:96], wat)
+	return h
 }
