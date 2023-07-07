@@ -1,0 +1,21 @@
+version: '3'
+services:
+  spectre:
+    build:
+      context: "../.."
+      dockerfile: "./cmd/spectre/Dockerfile"
+    environment:
+      CFG_ETH_RPC_URLS: ${ETH_RPCS}
+      CFG_ETH_CHAIN_ID: ${ETH_CHID}
+      CFG_ARB_RPC_URLS: ${ARB_RPCS}
+      CFG_ARB_CHAIN_ID: ${ARB_CHID}
+      CFG_OPT_RPC_URLS: ${OPT_RPCS}
+      CFG_OPT_CHAIN_ID: ${OPT_CHID}
+
+      CFG_ETH_FROM: ${ETH_FROM}
+      CFG_ETH_KEYS: ${ETH_KEYS}
+      CFG_ETH_PASS: ${ETH_PASS}
+
+      CFG_FEEDS: "stage"
+
+      CFG_SPECTRE_TARGET_NETWORK: "ethereum-goerli"

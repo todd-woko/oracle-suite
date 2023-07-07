@@ -50,8 +50,6 @@ jobs:
           context: .
           file: ./Dockerfile-spire
           build-args: |
-            GIT_COMMIT=${{ github.sha }}
-            GIT_BRANCH=${{ github.ref }}
             APP_VERSION=${{ steps.meta.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
