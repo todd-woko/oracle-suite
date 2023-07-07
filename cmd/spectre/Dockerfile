@@ -4,7 +4,7 @@ RUN apk --no-cache add git gcc libc-dev linux-headers
 
 WORKDIR /app
 COPY . .
-RUN go mod tidy && go mod vendor && mkdir -p dist
+RUN go mod vendor && mkdir -p dist
 
 ARG APP_VERSION
 RUN CGO_ENABLED=0 go build -v \
@@ -13,8 +13,8 @@ RUN CGO_ENABLED=0 go build -v \
     ./cmd/spectre
 
 # ----------------------------------------------------------------------------------------
-FROM alpine:3.16
-RUN apk --no-cache add ca-certificates
+#FROM alpine:3.16
+FROM gcr.io/distroless/static-debian11
 
 WORKDIR /root
 COPY --from=builder /app/dist/* /usr/local/bin/
