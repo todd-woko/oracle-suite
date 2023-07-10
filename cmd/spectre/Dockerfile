@@ -2,24 +2,22 @@
 FROM golang:1.20-alpine as builder
 RUN apk --no-cache add git gcc libc-dev linux-headers
 
-WORKDIR /go/src/app
+WORKDIR /app
 COPY . .
 RUN go mod vendor && mkdir -p dist
 
-ARG APP_NAME=spectre
 ARG APP_VERSION
+RUN CGO_ENABLED=0 go build -v \
+    -ldflags "-X github.com/chronicleprotocol/oracle-suite.Version=$APP_VERSION" \
+    -o ./dist/spectre \
+    ./cmd/spectre
 
-ARG CGO_ENABLED=0
-RUN go build -ldflags "-X github.com/chronicleprotocol/oracle-suite.Version=$APP_VERSION" \
-    -o dist/$APP_NAME ./cmd/$APP_NAME
-RUN ./dist/$APP_NAME --version
+# ----------------------------------------------------------------------------------------
+#FROM alpine:3.16
+FROM gcr.io/distroless/static-debian11
 
-FROM alpine:3.16
-RUN apk --no-cache add ca-certificates
-
-# TODO: why root?
 WORKDIR /root
-COPY --from=builder /go/src/app/dist/* /usr/local/bin/
+COPY --from=builder /app/dist/* /usr/local/bin/
 COPY ./config-*.hcl ./cmd/spectre/config.hcl /usr/share/oracle-suite/
 
 ENTRYPOINT ["/usr/local/bin/spectre"]
@@ -27,5 +25,6 @@ CMD ["-c", "/usr/share/oracle-suite/config.hcl", "run"]
 
 # libp2p
 EXPOSE 8000
+
 # webapi
 EXPOSE 8080

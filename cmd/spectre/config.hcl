@@ -1,5 +1,5 @@
 # List of files to include in the order they are specified.
-# It supports glob patterns.
+# Files are included relative to the directory of the file that includes them.
 include = [
   "config-defaults.hcl",
   "config-ethereum.hcl",
