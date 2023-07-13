@@ -65,6 +65,10 @@ type configOriginRocketPool struct {
 	Contracts configContracts `hcl:"contracts,block"`
 }
 
+type configOriginWrappedStakedETH struct {
+	Contracts configContracts `hcl:"contracts,block"`
+}
+
 // averageFromBlocks is a list of blocks distances from the latest blocks from
 // which prices will be averaged.
 var averageFromBlocks = []int64{0, 10, 20}
@@ -89,6 +93,8 @@ func (c *configOrigin) PostDecodeBlock(
 		config = &configOriginIShares{}
 	case "rocketpool":
 		config = &configOriginRocketPool{}
+	case "wsteth":
+		config = &configOriginWrappedStakedETH{}
 	default:
 		return hcl.Diagnostics{{
 			Severity: hcl.DiagError,
@@ -186,6 +192,22 @@ func (c *configOrigin) configureOrigin(d Dependencies) (origin.Origin, error) {
 				Severity: hcl.DiagError,
 				Summary:  "Runtime error",
 				Detail:   fmt.Sprintf("Failed to create rocketpool origin: %s", err),
+				Subject:  c.Range.Ptr(),
+			}
+		}
+		return origin, nil
+	case *configOriginWrappedStakedETH:
+		origin, err := origin.NewWrappedStakedETH(origin.WrappedStakedETHConfig{
+			Client:            d.Clients[o.Contracts.EthereumClient],
+			ContractAddresses: o.Contracts.ContractAddresses,
+			Blocks:            averageFromBlocks,
+			Logger:            d.Logger,
+		})
+		if err != nil {
+			return nil, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Runtime error",
+				Detail:   fmt.Sprintf("Failed to create wsteth v3 origin: %s", err),
 				Subject:  c.Range.Ptr(),
 			}
 		}

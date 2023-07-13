@@ -95,6 +95,15 @@ gofernext {
     jq   = "{price: .[0].trade_price, time: (.[0].timestamp/1000), volume: .[0].acc_trade_volume_24h}"
   }
 
+  origin "wsteth" {
+    type = "wsteth"
+    contracts "ethereum" {
+      addresses = {
+        "WSTETH/STETH" = "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0"
+      }
+    }
+  }
+
   data_model "BTC/USD" {
     median {
       min_values = 3
