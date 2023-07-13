@@ -37,6 +37,25 @@ type configOriginIShares struct {
 	URL string `hcl:"url"`
 }
 
+type configBalancerContracts struct {
+	EthereumClient    string            `hcl:"client,label"`
+	ContractAddresses map[string]string `hcl:"addresses"`
+	// `references` are optional, the key should be matched with `addresses` as the additional address.
+	ReferenceAddresses map[string]string `hcl:"references,optional"`
+}
+
+type configOriginBalancer struct {
+	// `addresses` are the pool addresses of WeightedPool2Tokens or MetaStablePool
+	// `references` are used if the pool is MetaStablePool, key of mapping is the same key to `addresses` and
+	// value should be the token0 address of pool.
+	// If the pool is WeightedPool2Tokens, `references` should not contain the reference key of that pool.
+	Contracts configBalancerContracts `hcl:"contracts,block"`
+}
+
+// averageFromBlocks is a list of blocks distances from the latest blocks from
+// which prices will be averaged.
+var averageFromBlocks = []int64{0, 10, 20}
+
 func (c *configOrigin) PostDecodeBlock(
 	ctx *hcl.EvalContext,
 	_ *hcl.BodySchema,
@@ -49,6 +68,8 @@ func (c *configOrigin) PostDecodeBlock(
 		config = &configOriginStatic{}
 	case "tick_generic_jq":
 		config = &configOriginTickGenericJQ{}
+	case "balancerV2":
+		config = &configOriginBalancer{}
 	case "ishares":
 		config = &configOriginIShares{}
 	default:
@@ -82,7 +103,24 @@ func (c *configOrigin) configureOrigin(d Dependencies) (origin.Origin, error) {
 			return nil, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Runtime error",
-				Detail:   fmt.Sprintf("Failed to create origin: %s", err),
+				Detail:   fmt.Sprintf("Failed to create jq origin: %s", err),
+				Subject:  c.Range.Ptr(),
+			}
+		}
+		return origin, nil
+	case *configOriginBalancer:
+		origin, err := origin.NewBalancerV2(origin.BalancerV2Config{
+			Client:             d.Clients[o.Contracts.EthereumClient],
+			ContractAddresses:  o.Contracts.ContractAddresses,
+			ReferenceAddresses: o.Contracts.ReferenceAddresses,
+			Blocks:             averageFromBlocks,
+			Logger:             d.Logger,
+		})
+		if err != nil {
+			return nil, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Runtime error",
+				Detail:   fmt.Sprintf("Failed to create balancer origin: %s", err),
 				Subject:  c.Range.Ptr(),
 			}
 		}
@@ -98,7 +136,7 @@ func (c *configOrigin) configureOrigin(d Dependencies) (origin.Origin, error) {
 			return nil, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Runtime error",
-				Detail:   fmt.Sprintf("Failed to create origin: %s", err),
+				Detail:   fmt.Sprintf("Failed to create ishares origin: %s", err),
 				Subject:  c.Range.Ptr(),
 			}
 		}
