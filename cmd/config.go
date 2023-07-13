@@ -13,43 +13,30 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package cmd
 
 import (
-	"context"
-	"fmt"
-	"os"
+	"github.com/spf13/pflag"
 
-	"github.com/chronicleprotocol/oracle-suite/cmd"
-	"github.com/chronicleprotocol/oracle-suite/pkg/datapoint"
+	config2 "github.com/chronicleprotocol/oracle-suite/pkg/config"
 )
 
-// exitCode to be returned by the application.
-var exitCode = 0
-
-func main() {
-	opts := options{
-		Version: cmd.Version,
-	}
-
-	rootCmd := NewRootCommand(&opts)
-	rootCmd.AddCommand(
-		NewModelsCmd(&opts),
-		NewDataCmd(&opts),
-	)
-
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Printf("Error: %s\n", err)
-		if exitCode == 0 {
-			os.Exit(1)
-		}
-	}
-	os.Exit(exitCode)
+type FilesFlags struct {
+	//TODO: think of ways to make it a Value interface
+	Paths []string
 }
 
-func getModelsNames(ctx context.Context, provider datapoint.Provider, args []string) []string {
-	if len(args) == 0 {
-		return provider.ModelNames(ctx)
-	}
-	return args
+func NewFilesFlagSet(cfp *FilesFlags) *pflag.FlagSet {
+	fs := pflag.NewFlagSet("config", pflag.PanicOnError)
+	fs.StringSliceVarP(
+		&cfp.Paths,
+		"config", "c",
+		[]string{"./config.hcl"},
+		"config file",
+	)
+	return fs
+}
+
+func (cf FilesFlags) LoadConfigFiles(config any) error {
+	return config2.LoadFiles(config, cf.Paths)
 }

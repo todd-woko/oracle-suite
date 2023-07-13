@@ -23,17 +23,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRunCmd(opts *options) *cobra.Command {
+func NewRun2Cmd(opts *options) *cobra.Command {
 	return &cobra.Command{
-		Use:     "run",
+		Use:     "run2",
+		Short:   "Run Feed NEXT agent",
 		Args:    cobra.ExactArgs(0),
-		Aliases: []string{"agent"},
+		Aliases: []string{"agent2"},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if err := opts.LoadConfigFiles(&opts.Config); err != nil {
+			if err := opts.LoadConfigFiles(&opts.Config2); err != nil {
 				return err
 			}
 			ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
-			services, err := opts.Config.Services(opts.Logger())
+			services, err := opts.Config2.Services(opts.Logger())
 			if err != nil {
 				return err
 			}

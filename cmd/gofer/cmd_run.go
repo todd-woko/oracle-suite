@@ -1,4 +1,4 @@
-//  Copyright (C) 2020 Maker Ecosystem Growth Holdings, INC.
+//  Copyright (C) 2021-2023 Chronicle Labs, Inc.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU Affero General Public License as
@@ -21,18 +21,15 @@ import (
 	"os/signal"
 
 	"github.com/spf13/cobra"
-
-	"github.com/chronicleprotocol/oracle-suite/pkg/config"
 )
 
-func NewAgentCmd(opts *options) *cobra.Command {
+func NewRunCmd(opts *options) *cobra.Command {
 	return &cobra.Command{
-		Use:   "agent",
-		Args:  cobra.NoArgs,
-		Short: "Start an RPC server",
-		Long:  `Start an RPC server.`,
+		Use:     "run",
+		Args:    cobra.NoArgs,
+		Aliases: []string{"agent"},
 		RunE: func(_ *cobra.Command, args []string) error {
-			if err := config.LoadFiles(&opts.Config, opts.ConfigFilePath); err != nil {
+			if err := opts.LoadConfigFiles(&opts.Config); err != nil {
 				return err
 			}
 			ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)

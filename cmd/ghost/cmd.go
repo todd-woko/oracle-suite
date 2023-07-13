@@ -20,33 +20,27 @@ import (
 
 	"github.com/chronicleprotocol/oracle-suite/cmd"
 	"github.com/chronicleprotocol/oracle-suite/pkg/config/ghost"
-	"github.com/chronicleprotocol/oracle-suite/pkg/log/logrus/flag"
+	"github.com/chronicleprotocol/oracle-suite/pkg/config/ghostnext"
 )
 
 type options struct {
-	flag.LoggerFlag
-	ConfigFilePath []string
-	Config         ghost.Config
-	GoferNoRPC     bool
+	cmd.LoggerFlags
+	cmd.FilesFlags
+	Config     ghost.Config
+	Config2    ghostnext.Config
+	GoferNoRPC bool
 }
 
 func NewRootCommand(opts *options) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "ghost",
 		Version:       cmd.Version,
-		Short:         "",
-		Long:          ``,
 		SilenceErrors: false,
 		SilenceUsage:  true,
 	}
 
-	rootCmd.PersistentFlags().AddFlagSet(flag.NewLoggerFlagSet(&opts.LoggerFlag))
-	rootCmd.PersistentFlags().StringSliceVarP(
-		&opts.ConfigFilePath,
-		"config", "c",
-		[]string{"./config.hcl"},
-		"ghost config file",
-	)
+	rootCmd.PersistentFlags().AddFlagSet(cmd.NewLoggerFlagSet(&opts.LoggerFlags))
+	rootCmd.PersistentFlags().AddFlagSet(cmd.NewFilesFlagSet(&opts.FilesFlags))
 	rootCmd.PersistentFlags().BoolVar(
 		&opts.GoferNoRPC,
 		"gofer.norpc",

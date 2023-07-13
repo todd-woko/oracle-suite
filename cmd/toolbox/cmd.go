@@ -19,13 +19,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/chronicleprotocol/oracle-suite/cmd"
-	"github.com/chronicleprotocol/oracle-suite/pkg/log/logrus/flag"
 )
 
 type options struct {
-	flag.LoggerFlag
-	ConfigFilePath []string
-	Config         Config
+	cmd.LoggerFlags
+	cmd.FilesFlags
+	Config Config
 }
 
 func NewRootCommand() *cobra.Command {
@@ -34,18 +33,11 @@ func NewRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "toolbox",
 		Version:       cmd.Version,
-		Short:         "",
-		Long:          ``,
 		SilenceErrors: false,
 		SilenceUsage:  true,
 	}
 
-	rootCmd.PersistentFlags().StringSliceVarP(
-		&opts.ConfigFilePath,
-		"config", "c",
-		[]string{"./config.hcl"},
-		"spire config file",
-	)
+	rootCmd.PersistentFlags().AddFlagSet(cmd.NewFilesFlagSet(&opts.FilesFlags))
 
 	rootCmd.AddCommand(
 		NewMedianCmd(&opts),
