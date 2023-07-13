@@ -52,6 +52,15 @@ type configOriginBalancer struct {
 	Contracts configBalancerContracts `hcl:"contracts,block"`
 }
 
+type configContracts struct {
+	EthereumClient    string            `hcl:"client,label"`
+	ContractAddresses map[string]string `hcl:"addresses"`
+}
+
+type configOriginCurve struct {
+	Contracts configContracts `hcl:"contracts,block"`
+}
+
 // averageFromBlocks is a list of blocks distances from the latest blocks from
 // which prices will be averaged.
 var averageFromBlocks = []int64{0, 10, 20}
@@ -70,6 +79,8 @@ func (c *configOrigin) PostDecodeBlock(
 		config = &configOriginTickGenericJQ{}
 	case "balancerV2":
 		config = &configOriginBalancer{}
+	case "curve":
+		config = &configOriginCurve{}
 	case "ishares":
 		config = &configOriginIShares{}
 	default:
@@ -121,6 +132,22 @@ func (c *configOrigin) configureOrigin(d Dependencies) (origin.Origin, error) {
 				Severity: hcl.DiagError,
 				Summary:  "Runtime error",
 				Detail:   fmt.Sprintf("Failed to create balancer origin: %s", err),
+				Subject:  c.Range.Ptr(),
+			}
+		}
+		return origin, nil
+	case *configOriginCurve:
+		origin, err := origin.NewCurve(origin.CurveConfig{
+			Client:            d.Clients[o.Contracts.EthereumClient],
+			ContractAddresses: o.Contracts.ContractAddresses,
+			Blocks:            averageFromBlocks,
+			Logger:            d.Logger,
+		})
+		if err != nil {
+			return nil, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Runtime error",
+				Detail:   fmt.Sprintf("Failed to create curve origin: %s", err),
 				Subject:  c.Range.Ptr(),
 			}
 		}

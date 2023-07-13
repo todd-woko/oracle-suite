@@ -81,7 +81,6 @@ func MultiCall(
 		return nil, fmt.Errorf("unexpected number of multicall results, expected %d, got %d",
 			len(calls), len(multicallResults))
 	}
-
 	return multicallResults, nil
 }
 

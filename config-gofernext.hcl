@@ -41,6 +41,16 @@ gofernext {
     jq   = "{price: .price, time: .time, volume: .volume}"
   }
 
+  origin "curve" {
+    type = "curve"
+    contracts "ethereum" {
+      addresses = {
+        "RETH/WSTETH" = "0x447Ddd4960d9fdBF6af9a790560d0AF76795CB08",
+        "ETH/STETH"   = "0xDC24316b9AE028F1497c275EB9192a3Ea0f67022"
+      }
+    }
+  }
+
   origin "gemini" {
     type = "tick_generic_jq"
     url  = "https://api.gemini.com/v1/pubticker/$${lcbase}$${lcquote}"
@@ -126,22 +136,6 @@ gofernext {
       origin "coinbase" { query = "LINK/USD" }
       origin "gemini" { query = "LINK/USD" }
       origin "kraken" { query = "LINK/USD" }
-    }
-  }
-
-  data_model "MANA/USD" {
-    median {
-      min_values = 2
-      indirect {
-        origin "binance" { query = "MANA/BTC" }
-        reference { data_model = "BTC/USD" }
-      }
-      origin "coinbase" { query = "MANA/USD" }
-      origin "kraken" { query = "MANA/USD" }
-      indirect {
-        origin "okx" { query = "MANA/USDT" }
-        reference { data_model = "USDT/USD" }
-      }
     }
   }
 
