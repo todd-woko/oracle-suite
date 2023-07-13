@@ -89,6 +89,29 @@ gofernext {
     }
   }
 
+  origin "sushiswap" {
+    type = "sushiswap"
+    contracts "ethereum" {
+      addresses = {
+        "YFI/WETH" = "0x088ee5007c98a9677165d78dd2109ae4a3d04d0c"
+      }
+    }
+  }
+
+  origin "uniswapV3" {
+    type = "uniswapV3"
+    contracts "ethereum" {
+      addresses = {
+        "GNO/WETH"  = "0xf56D08221B5942C428Acc5De8f78489A97fC5599",
+        "LINK/WETH" = "0xa6Cc3C2531FdaA6Ae1A3CA84c2855806728693e8",
+        "MKR/USDC"  = "0xC486Ad2764D55C7dc033487D634195d6e4A6917E",
+        "MKR/WETH"  = "0xe8c6c9227491C0a8156A0106A0204d881BB7E531",
+        "USDC/WETH" = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640",
+        "YFI/WETH"  = "0x04916039B1f59D9745Bf6E0a21f191D1e0A84287"
+      }
+    }
+  }
+
   origin "upbit" {
     type = "tick_generic_jq"
     url  = "https://api.upbit.com/v1/ticker?markets=$${ucquote}-$${ucbase}"
@@ -136,6 +159,9 @@ gofernext {
       origin "coinbase" { query = "ETH/USD" }
       origin "gemini" { query = "ETH/USD" }
       origin "kraken" { query = "ETH/USD" }
+      alias "ETH/USD" {
+        origin "uniswapV3" { query = "WETH/USDC" }
+      }
     }
   }
 
@@ -154,6 +180,12 @@ gofernext {
       origin "coinbase" { query = "LINK/USD" }
       origin "gemini" { query = "LINK/USD" }
       origin "kraken" { query = "LINK/USD" }
+      indirect {
+        alias "LINK/ETH" {
+          origin "uniswapV3" { query = "LINK/WETH" }
+        }
+        reference { data_model = "ETH/USD" }
+      }
     }
   }
 
@@ -185,6 +217,16 @@ gofernext {
       origin "coinbase" { query = "MKR/USD" }
       origin "gemini" { query = "MKR/USD" }
       origin "kraken" { query = "MKR/USD" }
+      indirect {
+        alias "MKR/ETH" {
+          origin "uniswapV3" { query = "MKR/WETH" }
+        }
+        reference { data_model = "ETH/USD" }
+      }
+      indirect {
+        origin "uniswapV3" { query = "MKR/USDC" }
+        reference { data_model = "USDC/USD" }
+      }
     }
   }
 
@@ -259,6 +301,12 @@ gofernext {
       indirect {
         origin "okx" { query = "YFI/USDT" }
         reference { data_model = "USDT/USD" }
+      }
+      indirect {
+        alias "YFI/ETH" {
+          origin "sushiswap" { query = "YFI/WETH" }
+        }
+        reference { data_model = "ETH/USD" }
       }
     }
   }

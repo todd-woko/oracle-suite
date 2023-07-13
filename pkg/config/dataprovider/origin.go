@@ -65,6 +65,14 @@ type configOriginRocketPool struct {
 	Contracts configContracts `hcl:"contracts,block"`
 }
 
+type configOriginSushiswap struct {
+	Contracts configContracts `hcl:"contracts,block"`
+}
+
+type configOriginUniswapV3 struct {
+	Contracts configContracts `hcl:"contracts,block"`
+}
+
 type configOriginWrappedStakedETH struct {
 	Contracts configContracts `hcl:"contracts,block"`
 }
@@ -93,6 +101,10 @@ func (c *configOrigin) PostDecodeBlock(
 		config = &configOriginIShares{}
 	case "rocketpool":
 		config = &configOriginRocketPool{}
+	case "sushiswap":
+		config = &configOriginSushiswap{}
+	case "uniswapV3":
+		config = &configOriginUniswapV3{}
 	case "wsteth":
 		config = &configOriginWrappedStakedETH{}
 	default:
@@ -192,6 +204,38 @@ func (c *configOrigin) configureOrigin(d Dependencies) (origin.Origin, error) {
 				Severity: hcl.DiagError,
 				Summary:  "Runtime error",
 				Detail:   fmt.Sprintf("Failed to create rocketpool origin: %s", err),
+				Subject:  c.Range.Ptr(),
+			}
+		}
+		return origin, nil
+	case *configOriginSushiswap:
+		origin, err := origin.NewSushiswap(origin.SushiswapConfig{
+			Client:            d.Clients[o.Contracts.EthereumClient],
+			ContractAddresses: o.Contracts.ContractAddresses,
+			Blocks:            averageFromBlocks,
+			Logger:            d.Logger,
+		})
+		if err != nil {
+			return nil, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Runtime error",
+				Detail:   fmt.Sprintf("Failed to create sushiswap origin: %s", err),
+				Subject:  c.Range.Ptr(),
+			}
+		}
+		return origin, nil
+	case *configOriginUniswapV3:
+		origin, err := origin.NewUniswapV3(origin.UniswapV3Config{
+			Client:            d.Clients[o.Contracts.EthereumClient],
+			ContractAddresses: o.Contracts.ContractAddresses,
+			Blocks:            averageFromBlocks,
+			Logger:            d.Logger,
+		})
+		if err != nil {
+			return nil, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Runtime error",
+				Detail:   fmt.Sprintf("Failed to create uniswap v3 origin: %s", err),
 				Subject:  c.Range.Ptr(),
 			}
 		}
