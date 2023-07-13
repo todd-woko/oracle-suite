@@ -80,6 +80,15 @@ gofernext {
     jq   = "{price: .data[0].last|tonumber, time: (.data[0].ts|tonumber/1000), volume: .data[0].vol24h|tonumber}"
   }
 
+  origin "rocketpool" {
+    type = "rocketpool"
+    contracts "ethereum" {
+      addresses = {
+        "RETH/ETH" = "0xae78736Cd615f374D3085123A210448E74Fc6393"
+      }
+    }
+  }
+
   origin "upbit" {
     type = "tick_generic_jq"
     url  = "https://api.upbit.com/v1/ticker?markets=$${ucquote}-$${ucbase}"

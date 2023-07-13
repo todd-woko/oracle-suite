@@ -61,6 +61,10 @@ type configOriginCurve struct {
 	Contracts configContracts `hcl:"contracts,block"`
 }
 
+type configOriginRocketPool struct {
+	Contracts configContracts `hcl:"contracts,block"`
+}
+
 // averageFromBlocks is a list of blocks distances from the latest blocks from
 // which prices will be averaged.
 var averageFromBlocks = []int64{0, 10, 20}
@@ -83,6 +87,8 @@ func (c *configOrigin) PostDecodeBlock(
 		config = &configOriginCurve{}
 	case "ishares":
 		config = &configOriginIShares{}
+	case "rocketpool":
+		config = &configOriginRocketPool{}
 	default:
 		return hcl.Diagnostics{{
 			Severity: hcl.DiagError,
@@ -164,6 +170,22 @@ func (c *configOrigin) configureOrigin(d Dependencies) (origin.Origin, error) {
 				Severity: hcl.DiagError,
 				Summary:  "Runtime error",
 				Detail:   fmt.Sprintf("Failed to create ishares origin: %s", err),
+				Subject:  c.Range.Ptr(),
+			}
+		}
+		return origin, nil
+	case *configOriginRocketPool:
+		origin, err := origin.NewRocketPool(origin.RocketPoolConfig{
+			Client:            d.Clients[o.Contracts.EthereumClient],
+			ContractAddresses: o.Contracts.ContractAddresses,
+			Blocks:            averageFromBlocks,
+			Logger:            d.Logger,
+		})
+		if err != nil {
+			return nil, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Runtime error",
+				Detail:   fmt.Sprintf("Failed to create rocketpool origin: %s", err),
 				Subject:  c.Range.Ptr(),
 			}
 		}
