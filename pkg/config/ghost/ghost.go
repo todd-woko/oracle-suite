@@ -93,6 +93,10 @@ func (c *Config) Services(baseLogger log.Logger, noRPC bool) (*Services, error) 
 	if err != nil {
 		return nil, err
 	}
+	// Include random keys in feed list to enable broadcasting.
+	for _, v := range c.Ethereum.RandKeys {
+		c.Transport.LibP2P.Feeds = append(c.Transport.LibP2P.Feeds, keys[v].Address())
+	}
 	transport, err := c.Transport.Transport(transportConfig.Dependencies{
 		Keys:    keys,
 		Clients: clients,
