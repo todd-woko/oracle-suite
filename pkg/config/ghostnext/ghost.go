@@ -23,13 +23,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 
 	configGoferNext "github.com/chronicleprotocol/oracle-suite/pkg/config/dataprovider"
-	priceproviderConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/priceprovider"
-
 	ethereumConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/ethereum"
 	feedConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/feednext"
 	loggerConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/logger"
 	transportConfig "github.com/chronicleprotocol/oracle-suite/pkg/config/transport"
-	"github.com/chronicleprotocol/oracle-suite/pkg/datapoint"
 	"github.com/chronicleprotocol/oracle-suite/pkg/feed"
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
 
@@ -41,12 +38,11 @@ import (
 
 // Config is the configuration for Ghost.
 type Config struct {
-	GhostNext feedConfig.Config          `hcl:"ghostnext,block"`
-	Gofer     priceproviderConfig.Config `hcl:"gofer,block"`
-	GoferNext configGoferNext.Config     `hcl:"gofernext,block"`
-	Ethereum  ethereumConfig.Config      `hcl:"ethereum,block"`
-	Transport transportConfig.Config     `hcl:"transport,block"`
-	Logger    *loggerConfig.Config       `hcl:"logger,block,optional"`
+	GhostNext feedConfig.Config      `hcl:"ghostnext,block"`
+	GoferNext configGoferNext.Config `hcl:"gofernext,block"`
+	Ethereum  ethereumConfig.Config  `hcl:"ethereum,block"`
+	Transport transportConfig.Config `hcl:"transport,block"`
+	Logger    *loggerConfig.Config   `hcl:"logger,block,optional"`
 
 	// HCL fields:
 	Remain  hcl.Body        `hcl:",remain"` // To ignore unknown blocks.
@@ -54,7 +50,7 @@ type Config struct {
 }
 
 // Services returns the services configured for Lair.
-func (c *Config) Services(baseLogger log.Logger, legacy bool) (*Services, error) {
+func (c *Config) Services(baseLogger log.Logger) (pkgSupervisor.Service, error) {
 	logger, err := c.Logger.Logger(loggerConfig.Dependencies{
 		AppName:    "ghost",
 		BaseLogger: baseLogger,
@@ -81,18 +77,10 @@ func (c *Config) Services(baseLogger log.Logger, legacy bool) (*Services, error)
 	if err != nil {
 		return nil, err
 	}
-	var dataProvider datapoint.Provider
-	if legacy {
-		dataProvider, err = c.Gofer.ConfigureDataProvider(priceproviderConfig.Dependencies{
-			Clients: clients,
-			Logger:  logger,
-		})
-	} else {
-		dataProvider, err = c.GoferNext.ConfigureDataProvider(configGoferNext.Dependencies{
-			Clients: clients,
-			Logger:  logger,
-		})
-	}
+	dataProvider, err := c.GoferNext.ConfigureDataProvider(configGoferNext.Dependencies{
+		Clients: clients,
+		Logger:  logger,
+	})
 	if err != nil {
 		return nil, err
 	}
