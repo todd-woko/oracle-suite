@@ -2,13 +2,13 @@ version: '3'
 services:
   bootstrap:
     hostname: "bootstrap.local"
-    image: ghcr.io/chronicleprotocol/spire:0.0.0-dev.0
+    image: ghcr.io/chronicleprotocol/spire
     command: [ "bootstrap" ]
     environment:
       CFG_LIBP2P_BOOTSTRAP_ADDRS: ""
       CFG_LIBP2P_PK_SEED: "FEDCBA9876543210FEDCBA98765432100123456789ABCDEF0123456789ABCDEF"
   ghost1:
-    image: ghcr.io/chronicleprotocol/ghost:0.0.0-dev.0
+    image: ghcr.io/chronicleprotocol/ghost
     environment:
       CFG_ETH_FROM: ${ETH_FROM_A}
       CFG_ETH_KEYS: ${ETH_KEYS_A}
@@ -18,7 +18,7 @@ services:
       CFG_GOFER_OPENEXCHANGERATES_API_KEY:
       CFG_WEBAPI_ENABLE: 0
   ghost2:
-    image: ghcr.io/chronicleprotocol/ghost:0.0.0-dev.0
+    image: ghcr.io/chronicleprotocol/ghost
     environment:
       CFG_ETH_FROM: ${ETH_FROM_B}
       CFG_ETH_KEYS: ${ETH_KEYS_B}
@@ -28,7 +28,7 @@ services:
       CFG_GOFER_OPENEXCHANGERATES_API_KEY:
       CFG_WEBAPI_ENABLE: 0
   ghost3:
-    image: ghcr.io/chronicleprotocol/ghost:0.0.0-dev.0
+    image: ghcr.io/chronicleprotocol/ghost
     environment:
       CFG_ETH_FROM: ${ETH_FROM_C}
       CFG_ETH_KEYS: ${ETH_KEYS_C}
@@ -38,7 +38,7 @@ services:
       CFG_GOFER_OPENEXCHANGERATES_API_KEY:
       CFG_WEBAPI_ENABLE: 0
   spectre1:
-    image: ghcr.io/chronicleprotocol/spectre:0.0.0-dev.0
+    image: ghcr.io/chronicleprotocol/spectre
     environment:
       CFG_ETH_FROM: ${ETH_FROM_D}
       CFG_ETH_KEYS: ${ETH_KEYS_D}
@@ -54,7 +54,7 @@ services:
       CFG_OPT_RPC_URLS: ${OPT_RPCS} # comma separated list of optimism rpc urls
       CFG_OPT_CHAIN_ID: ${OPT_CHID} # optimism chain id
   spectre2:
-    image: ghcr.io/chronicleprotocol/spectre:0.0.0-dev.0
+    image: ghcr.io/chronicleprotocol/spectre
     environment:
       CFG_ETH_FROM: ${ETH_FROM_E}
       CFG_ETH_KEYS: ${ETH_KEYS_E}
@@ -70,7 +70,7 @@ services:
       CFG_OPT_RPC_URLS: ${OPT_RPCS} # comma separated list of optimism rpc urls
       CFG_OPT_CHAIN_ID: ${OPT_CHID} # optimism chain id
   spectre3:
-    image: ghcr.io/chronicleprotocol/spectre:0.0.0-dev.0
+    image: ghcr.io/chronicleprotocol/spectre
     environment:
       CFG_ETH_FROM: ${ETH_FROM_F}
       CFG_ETH_KEYS: ${ETH_KEYS_F}
