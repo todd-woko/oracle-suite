@@ -16,26 +16,41 @@
 package main
 
 import (
-	"os"
-
-	"github.com/chronicleprotocol/oracle-suite/cmd"
-	"github.com/chronicleprotocol/oracle-suite/pkg/config/spectre"
+	"fmt"
+	"strings"
 )
 
-func main() {
-	var config spectre.Config
-	var ConfigFiles cmd.FilesFlags
-	var LoggerFlags cmd.LoggerFlags
-	c := cmd.NewRootCommand(
-		"spectre",
-		cmd.Version,
-		cmd.NewFilesFlagSet(&ConfigFiles),
-		cmd.NewLoggerFlagSet(&LoggerFlags),
-	)
-	c.AddCommand(
-		cmd.NewRunCmd(&config, &ConfigFiles, &LoggerFlags),
-	)
-	if err := c.Execute(); err != nil {
-		os.Exit(1)
+const (
+	formatPlain = "plain"
+	formatTrace = "trace"
+	formatJSON  = "json"
+)
+
+type formatTypeValue2 struct {
+	format string
+}
+
+func (v *formatTypeValue2) String() string {
+	if v.format == "" {
+		return formatPlain
 	}
+	return v.format
+}
+
+func (v *formatTypeValue2) Set(s string) error {
+	switch strings.ToLower(s) {
+	case formatPlain:
+		v.format = formatPlain
+	case formatTrace:
+		v.format = formatTrace
+	case formatJSON:
+		v.format = formatJSON
+	default:
+		return fmt.Errorf("unsupported format: %s", s)
+	}
+	return nil
+}
+
+func (v *formatTypeValue2) Type() string {
+	return "plain|trace|json"
 }

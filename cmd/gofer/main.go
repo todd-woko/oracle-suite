@@ -21,12 +21,25 @@ import (
 	"os"
 
 	"github.com/chronicleprotocol/oracle-suite/cmd"
+	"github.com/chronicleprotocol/oracle-suite/pkg/config/gofer"
+	gofer2 "github.com/chronicleprotocol/oracle-suite/pkg/config/gofernext"
 	"github.com/chronicleprotocol/oracle-suite/pkg/datapoint"
 	"github.com/chronicleprotocol/oracle-suite/pkg/price/provider/marshal"
 )
 
 // exitCode to be returned by the application.
 var exitCode = 0
+
+// These are the command options that can be set by CLI flags.
+type options struct {
+	cmd.LoggerFlags
+	cmd.FilesFlags
+	Format  formatTypeValue
+	Config  gofer.Config
+	NoRPC   bool
+	Format2 formatTypeValue2
+	Config2 gofer2.Config
+}
 
 func main() {
 	opts := options{
