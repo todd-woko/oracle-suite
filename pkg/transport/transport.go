@@ -16,9 +16,12 @@
 package transport
 
 import (
+	"sort"
+
 	"github.com/chronicleprotocol/oracle-suite/pkg/log"
 	"github.com/chronicleprotocol/oracle-suite/pkg/supervisor"
 	"github.com/chronicleprotocol/oracle-suite/pkg/transport/messages"
+	"github.com/chronicleprotocol/oracle-suite/pkg/util/maputil"
 )
 
 // ReceivedMessage contains a Message received from Transport.
@@ -92,15 +95,29 @@ func (p *ReceivedMessage) Fields() log.Fields {
 	}
 }
 
-var AllTopics = []string{
-	messages.PriceV0MessageName, //nolint:staticcheck
-	messages.PriceV1MessageName, //nolint:staticcheck
-	messages.DataPointV1MessageName,
-	messages.EventV1MessageName,
-	messages.GreetV1MessageName,
-	messages.MuSigStartV1MessageName,
-	messages.MuSigTerminateV1MessageName,
-	messages.MuSigCommitmentV1MessageName,
-	messages.MuSigPartialSignatureV1MessageName,
-	messages.MuSigSignatureV1MessageName,
+type MessageMap map[string]Message
+
+// Keys returns a sorted list of keys.
+func (mm MessageMap) Keys() []string {
+	return maputil.SortKeys(mm, sort.Strings)
+}
+
+// SelectByTopic returns a new MessageMap with messages selected by topic.
+// Empty topic list will yield an empty map.
+func (mm MessageMap) SelectByTopic(topics ...string) (MessageMap, error) {
+	return maputil.Select(mm, topics)
+}
+
+var AllMessagesMap = MessageMap{
+	messages.PriceV0MessageName:                    (*messages.Price)(nil), //nolint:staticcheck
+	messages.PriceV1MessageName:                    (*messages.Price)(nil), //nolint:staticcheck
+	messages.DataPointV1MessageName:                (*messages.DataPoint)(nil),
+	messages.GreetV1MessageName:                    (*messages.Greet)(nil),
+	messages.EventV1MessageName:                    (*messages.Event)(nil),
+	messages.MuSigStartV1MessageName:               (*messages.MuSigInitialize)(nil),
+	messages.MuSigTerminateV1MessageName:           (*messages.MuSigTerminate)(nil),
+	messages.MuSigCommitmentV1MessageName:          (*messages.MuSigCommitment)(nil),
+	messages.MuSigPartialSignatureV1MessageName:    (*messages.MuSigPartialSignature)(nil),
+	messages.MuSigSignatureV1MessageName:           (*messages.MuSigSignature)(nil),
+	messages.MuSigOptimisticSignatureV1MessageName: (*messages.MuSigOptimisticSignature)(nil),
 }
